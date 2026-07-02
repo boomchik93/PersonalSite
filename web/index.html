@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Матвей Семёнов — Разработчик</title>
+  <meta name="description" content="Матвей Семёнов — разработчик из Перми. Backend, ML и Computer Vision.">
+  <meta property="og:title" content="Матвей Семёнов — Разработчик">
+  <meta property="og:description" content="Backend, ML и Computer Vision. Пермь.">
+  <meta property="og:type" content="website">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+  <canvas id="bg-canvas"></canvas>
+  <div id="bg-orb"></div>
+  <div id="fav">
+    <div id="fav-fb">МС</div>
+    <img id="fav-img" alt="Матвей Семёнов" src="/uploads/photo.jpg">
+  </div>
+
+  <!-- NAV -->
+  <nav class="nav" id="nav">
+    <div class="nav__inner">
+      <a href="#" class="nav__logo">МС</a>
+      <div class="nav__links">
+        <a href="#about">О себе</a>
+        <a href="#interests">Увлечения</a>
+        <a href="#skills">Навыки</a>
+        <a href="#education">Образование</a>
+        <a href="#projects">Проекты</a>
+        <a href="#blog">Блог</a>
+        <a href="#music">Музыка</a>
+        <a href="#contacts">Контакты</a>
+      </div>
+      <div class="nav__actions">
+        <button class="nav__icon" id="theme-toggle" type="button" aria-label="Переключить тему">☀</button>
+        <button class="nav__icon nav__burger" id="menu-toggle" type="button" aria-label="Меню">☰</button>
+      </div>
+    </div>
+  </nav>
+
+  <main id="app" aria-busy="true">
+    <!-- HERO -->
+    <section class="hero">
+      <div class="hero__inner">
+        <div class="hero__kicker">SEMENOVM.RU · 2026</div>
+        <h1 class="hero__title">
+          <div class="hero__last" id="hero-last">СЕМЁНОВ</div>
+          <div class="hero__first neon" id="hero-first">МАТВЕЙ<span class="hero__cursor">▍</span></div>
+        </h1>
+
+        <div class="hero__rings-wrap">
+          <div class="hero__rings" id="hero-rings">
+            <span class="ring ring--1"></span>
+            <span class="ring ring--2"></span>
+            <span class="dot dot--top"></span>
+            <span class="dot dot--right"></span>
+            <span class="dot dot--bottom"></span>
+            <span class="dot dot--left"></span>
+          </div>
+        </div>
+
+        <div class="hero__role-row">
+          <span class="rule"></span>
+          <span class="hero__role" id="hero-role">Разработчик · Developer</span>
+          <span class="rule"></span>
+        </div>
+
+        <div class="hero__badges">
+          <span class="badge">Backend</span>
+          <span class="badge">ML</span>
+          <span class="badge">Computer Vision</span>
+        </div>
+
+        <div class="hero__cta">
+          <a href="#contacts" class="btn-primary neon-btn">Написать →</a>
+          <a href="#projects" class="btn-ghost">Проекты</a>
+        </div>
+
+        <div class="hero__loc">
+          <span class="hero__loc-dot"></span>
+          <span id="hero-loc">Пермь · Perm</span>
+        </div>
+      </div>
+
+      <div class="hero__scroll">
+        <div class="hero__scroll-line"></div>
+        <span class="hero__scroll-label">scroll</span>
+      </div>
+    </section>
+
+    <!-- BENTO DASHBOARD -->
+    <section class="bento">
+      <div class="bento__grid">
+        <div class="gc card-greeting">
+          <canvas id="spark-canvas" style="position:absolute;right:0;bottom:0;width:240px;height:110px;pointer-events:none;"></canvas>
+          <div class="card-greeting__label">// profile</div>
+          <h2 class="card-greeting__title" id="bento-greeting">Привет, я&#10;Матвей Семёнов</h2>
+          <p class="card-greeting__desc" id="bento-desc">Backend-инженер из Перми. Высоконагруженные системы, ML и компьютерное зрение.</p>
+          <a href="https://t.me/boomchik93" class="card-greeting__link" id="bento-tg">✈ @boomchik93</a>
+        </div>
+
+        <div class="gc bento-card">
+          <div class="bento-card__label">// status</div>
+          <div class="card-status__row">
+            <span class="status-dot"></span>
+            <span class="card-status__label">Открыт к работе</span>
+          </div>
+          <p class="card-status__desc">Рассматриваю предложения: backend, ML, CV</p>
+          <div class="card-status__foot">
+            <div class="card-status__foot-label">LOCATION</div>
+            <div class="card-status__foot-value" id="status-city">Пермь</div>
+            <div class="card-status__foot-sub">Russia · UTC+5</div>
+          </div>
+        </div>
+
+        <div class="gc bento-card">
+          <div class="bento-card__label">// core stack</div>
+          <div id="stack-bars"></div>
+        </div>
+
+        <div class="gc bento-card">
+          <div class="bento-card__label">// activity</div>
+          <div class="card-activity__num" id="proj-count">3+</div>
+          <div class="card-activity__label">завершённых проектов</div>
+          <div class="card-activity__bars" id="activity-bars"></div>
+        </div>
+
+        <a href="#blog" class="gc bento-card card-blog">
+          <div class="bento-card__label">// latest post</div>
+          <span class="card-blog__tag" id="blog-teaser-tag">Blog</span>
+          <h3 class="card-blog__title" id="blog-teaser-title">Записей пока нет</h3>
+          <div class="card-blog__date" id="blog-teaser-date"></div>
+          <div class="card-blog__read">Читать →</div>
+        </a>
+
+        <div class="gc bento-card card-now" id="bento-now">
+          <div class="card-now__label"><span class="card-now__dot"></span>now playing</div>
+          <div class="card-now-content">Загрузка…</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ABOUT -->
+    <section id="about" class="section">
+      <div class="container">
+        <div class="section__head" data-fade>
+          <span class="section__num">01</span>
+          <span class="section__dot">·</span>
+          <span class="section__label">About Me</span>
+          <span class="section__rule"></span>
+        </div>
+        <h2 class="section__title" id="about-h">Инженер с опытом&#10;в прикладном ML</h2>
+        <div class="about">
+          <div class="about__text" data-fade>
+            <p class="about__p1" id="about-ru"></p>
+            <p class="about__p2" id="about-en"></p>
+          </div>
+          <aside class="gc facts-card" data-fade>
+            <div class="facts-card__label">// quick facts</div>
+            <div id="facts-list"></div>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <!-- INTERESTS -->
+    <section id="interests" class="section">
+      <div class="container">
+        <div class="section__head" data-fade>
+          <span class="section__num">02</span>
+          <span class="section__dot">·</span>
+          <span class="section__label">Interests</span>
+          <span class="section__rule"></span>
+        </div>
+        <div class="interests-grid" id="interests-grid"></div>
+      </div>
+    </section>
+
+    <!-- SKILLS -->
+    <section id="skills" class="section">
+      <div class="container">
+        <div class="section__head" data-fade>
+          <span class="section__num">03</span>
+          <span class="section__dot">·</span>
+          <span class="section__label">Skills</span>
+          <span class="section__rule"></span>
+        </div>
+        <div class="skills-grid" id="skills-grid"></div>
+      </div>
+    </section>
+
+    <!-- EDUCATION -->
+    <section id="education" class="section">
+      <div class="container">
+        <div class="section__head" data-fade>
+          <span class="section__num">04</span>
+          <span class="section__dot">·</span>
+          <span class="section__label">Education</span>
+          <span class="section__rule"></span>
+        </div>
+        <div class="edu-list" id="edu-list"></div>
+      </div>
+    </section>
+
+    <!-- PROJECTS -->
+    <section id="projects" class="section">
+      <div class="container">
+        <div class="section__head" data-fade>
+          <span class="section__num">05</span>
+          <span class="section__dot">·</span>
+          <span class="section__label">Projects</span>
+          <span class="section__rule"></span>
+        </div>
+        <div class="projects-grid" id="projects-grid"></div>
+      </div>
+    </section>
+
+    <!-- BLOG -->
+    <section id="blog" class="section">
+      <div class="container">
+        <div class="section__head" data-fade>
+          <span class="section__num">06</span>
+          <span class="section__dot">·</span>
+          <span class="section__label">Blog</span>
+          <span class="section__rule"></span>
+        </div>
+        <div class="blog-feed" id="blog-feed"></div>
+        <div class="blog-more-wrap">
+          <button class="ghost-btn hidden" id="blog-more" type="button">Показать ещё</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- MUSIC -->
+    <section id="music" class="section">
+      <div class="container">
+        <div class="section__head" data-fade>
+          <span class="section__num">07</span>
+          <span class="section__dot">·</span>
+          <span class="section__label">Music</span>
+          <span class="section__rule"></span>
+        </div>
+        <div class="music-grid">
+          <div class="gc music-now-card" id="music-now"></div>
+          <div class="gc music-top-card">
+            <div class="music-top-card__label" id="music-top-label">// top tracks this month</div>
+            <div class="top-cols" id="music-top"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CONTACTS -->
+    <section id="contacts" class="section">
+      <div class="container">
+        <div class="section__head" data-fade>
+          <span class="section__num">08</span>
+          <span class="section__dot">·</span>
+          <span class="section__label">Contacts</span>
+          <span class="section__rule"></span>
+        </div>
+        <div class="contacts-grid">
+          <div data-fade>
+            <h2 class="contacts__title">Хотите узнать больше?</h2>
+            <p class="contacts__desc">Скачайте резюме или напишите напрямую — отвечаю в течение дня.</p>
+            <div class="socials" id="socials-grid"></div>
+            <a href="/uploads/resume.pdf" class="btn-primary neon-btn" id="resume-link" download>Скачать резюме ↓</a>
+          </div>
+
+          <form class="gc cform" id="contact-form" data-fade>
+            <div class="cform__label">// send a message</div>
+            <div class="cform__fields">
+              <div>
+                <label class="cform__field-label">Ваше имя *</label>
+                <input class="cform__input" name="name" type="text" placeholder="Иван Иванов" required maxlength="120">
+              </div>
+              <div>
+                <label class="cform__field-label">Email</label>
+                <input class="cform__input" name="email" type="email" placeholder="ivan@example.com" maxlength="160">
+              </div>
+              <div>
+                <label class="cform__field-label">Сообщение *</label>
+                <textarea class="cform__input cform__area" name="message" placeholder="Привет! Хочу обсудить..." required maxlength="4000" rows="4"></textarea>
+              </div>
+              <button class="cform__btn" type="submit">Отправить →</button>
+              <span class="cform__status" id="cform-status"></span>
+            </div>
+          </form>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="footer__inner">
+      <span id="footer-copy">© 2026 Матвей Семёнов</span>
+      <span>Made with care · <a href="https://t.me/boomchik93" id="footer-handle">@boomchik93</a></span>
+    </div>
+  </footer>
+
+  <!-- Lightbox -->
+  <div class="lightbox hidden" id="lightbox">
+    <button class="lightbox__close" id="lightbox-close" type="button" aria-label="Закрыть">✕</button>
+    <button class="lightbox__nav lightbox__prev" id="lightbox-prev" type="button" aria-label="Предыдущее фото">‹</button>
+    <img class="lightbox__img" id="lightbox-img" alt="">
+    <button class="lightbox__nav lightbox__next" id="lightbox-next" type="button" aria-label="Следующее фото">›</button>
+    <div class="lightbox__counter" id="lightbox-counter"></div>
+  </div>
+
+  <!-- Mobile menu -->
+  <div class="mobile-menu hidden" id="mobile-menu">
+    <a href="#about">О себе</a>
+    <a href="#interests">Увлечения</a>
+    <a href="#skills">Навыки</a>
+    <a href="#education">Образование</a>
+    <a href="#projects">Проекты</a>
+    <a href="#blog">Блог</a>
+    <a href="#music">Музыка</a>
+    <a href="#contacts">Контакты</a>
+  </div>
+
+  <script src="/assets/app.js"></script>
+</body>
+</html>

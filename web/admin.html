@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Админка · Матвей Семёнов</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/style.css">
+  <link rel="stylesheet" href="/assets/admin.css">
+</head>
+<body>
+  <canvas id="bg-canvas"></canvas>
+  <div id="bg-orb"></div>
+
+  <!-- Login -->
+  <div id="login" class="admin-login hidden">
+    <div class="gc admin-login__card">
+      <div class="admin-login__logo">МС</div>
+      <h1 class="admin-login__title">Админка</h1>
+      <div class="admin-login__sub">Введите пароль для входа</div>
+      <label class="cform__field-label">Пароль</label>
+      <input id="login-pass" class="cform__input" type="password" autocomplete="current-password" placeholder="••••••••">
+      <div class="admin-toolbar">
+        <button id="login-btn" class="btn-primary neon-btn" type="button">Войти →</button>
+        <span id="login-status" class="admin-status"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Panel -->
+  <div id="panel" class="admin hidden">
+    <nav class="nav" id="nav">
+      <div class="nav__inner">
+        <a href="/" class="nav__logo">МС</a>
+        <span class="admin-nav__title">Админка сайта</span>
+        <div class="nav__actions">
+          <button class="nav__icon" id="theme-toggle" type="button" aria-label="Переключить тему">☀</button>
+          <a href="/" target="_blank" class="nav__btn admin-nav__view">Сайт ↗</a>
+          <button class="nav__btn" id="logout-btn" type="button">Выйти</button>
+          <button class="nav__icon nav__burger" id="menu-toggle" type="button" aria-label="Меню">☰</button>
+        </div>
+      </div>
+    </nav>
+
+    <div class="admin-body">
+      <aside class="admin-tabs gc" id="admin-tabs">
+        <button data-tab="profile" class="admin-tab active">Профиль</button>
+        <button data-tab="projects" class="admin-tab">Проекты</button>
+        <button data-tab="skills" class="admin-tab">Навыки</button>
+        <button data-tab="education" class="admin-tab">Образование</button>
+        <button data-tab="interests" class="admin-tab">Увлечения</button>
+        <button data-tab="blog" class="admin-tab">Блог</button>
+        <button data-tab="spotify" class="admin-tab">Spotify</button>
+        <button data-tab="messages" class="admin-tab">Сообщения</button>
+      </aside>
+
+      <main class="admin-content">
+        <div id="tab-profile" class="tab"></div>
+        <div id="tab-projects" class="tab hidden"></div>
+        <div id="tab-skills" class="tab hidden"></div>
+        <div id="tab-education" class="tab hidden"></div>
+        <div id="tab-interests" class="tab hidden"></div>
+        <div id="tab-blog" class="tab hidden"></div>
+        <div id="tab-spotify" class="tab hidden"></div>
+        <div id="tab-messages" class="tab hidden"></div>
+      </main>
+    </div>
+  </div>
+
+  <script src="/assets/admin.js"></script>
+</body>
+</html>

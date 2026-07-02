@@ -1,0 +1,16 @@
+# build artifacts
+/cvserver
+/server
+*.exe
+
+# runtime data (database + uploaded files)
+/data/
+
+# env
+.env
+
+# editor / OS junk
+.DS_Store
+.claude/
+.vscode/
+.idea/

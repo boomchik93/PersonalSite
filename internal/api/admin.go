@@ -121,7 +121,7 @@ func (s *Server) handleDeleteSkillGroup(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
 
-// id==0 = new skill, else update
+// handleSaveSkill creates when id==0, otherwise updates the existing skill.
 func (s *Server) handleSaveSkill(w http.ResponseWriter, r *http.Request) {
 	var sk store.Skill
 	if err := decodeJSON(r, &sk); err != nil {

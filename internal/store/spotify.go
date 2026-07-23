@@ -95,8 +95,8 @@ type TopArtist struct {
 
 // ---------- tokens ----------
 
-// both tokens are encrypted in the db, they're basically the keys to my spotify
-// account so probably the most sensitive thing here
+// refresh_token and access_token are encrypted at rest — these are the actual
+// spotify account credentials, the most sensitive thing this app stores.
 func (s *Store) GetSpotifyTokens() (SpotifyTokens, error) {
 	var t SpotifyTokens
 	err := s.db.QueryRow(`SELECT refresh_token,access_token,expires_at,connected_at,last_error,last_poll_at FROM spotify_tokens WHERE id=1`).

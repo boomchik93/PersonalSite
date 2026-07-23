@@ -43,7 +43,7 @@ type Movie struct {
 	CreatedAt string `json:"created_at"`
 }
 
-// all movies, newest first
+// Movies returns every entry, newest first (by created_at, then id).
 func (s *Store) Movies() ([]Movie, error) {
 	rows, err := s.db.Query(`SELECT id,title,kind,year,rating,review,poster,genres,status,director,watched_at,favorite,pos,created_at
 		FROM movies ORDER BY created_at DESC, id DESC`)
@@ -75,7 +75,7 @@ func (s *Store) GetMovie(id int64) (Movie, error) {
 	return m, err
 }
 
-// id==0 means new movie, insert. otherwise update the existing one
+// UpsertMovie inserts when ID==0, otherwise updates in place.
 func (s *Store) UpsertMovie(m Movie) (int64, error) {
 	if m.ID == 0 {
 		res, err := s.db.Exec(`INSERT INTO movies

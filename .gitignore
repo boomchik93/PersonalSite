@@ -16,9 +16,10 @@
 .idea/
 
 # personal resume file
-/web/resume.pdf
+/cmd/cvserver/web/resume.pdf
 
 # design sources / backups, not part of the app
-/Perm_Main_logo_eng/
-/Светлый редизайн Semenov.dc/
 *.zip
+
+# prod data backups pulled locally
+/_prod_backup_*/

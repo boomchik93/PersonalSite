@@ -502,8 +502,9 @@ class Retro3D {
      overlaps the caption text below) ---- */
   _loadComputer(T, group) {
     const crt = this._makeCRT(T);
-    // scale the whole thing to a fixed size so it always frames the same,
-    // then push it up a bit so it doesn't overlap the caption
+    // auto-fit the whole workstation to a fixed target size (like the FBX
+    // path did) so framing is predictable at the slot's camera distance,
+    // then lift it into the upper region so it clears the caption below.
     const box = new T.Box3().setFromObject(crt.group);
     const size = new T.Vector3(); box.getSize(size);
     const center = new T.Vector3(); box.getCenter(center);

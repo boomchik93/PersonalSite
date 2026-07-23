@@ -145,7 +145,7 @@ func (s *Server) handleSite(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// just dumps every movie, the filtering happens in the browser
+// handleListMovies returns the whole library; filtering is done client-side.
 func (s *Server) handleListMovies(w http.ResponseWriter, r *http.Request) {
 	movies, err := s.Store.Movies()
 	if err != nil {

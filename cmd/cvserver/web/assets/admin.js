@@ -374,7 +374,7 @@ function bindInt(id) {
 }
 
 // ---------- rubik block (interests section copy) ----------
-// lives on the profile row, goes through the same profile endpoint
+// Stored on the profile row; saved through the same profile endpoint.
 function renderRubik() {
   const p = SITE.profile;
   $('tab-rubik').innerHTML = `

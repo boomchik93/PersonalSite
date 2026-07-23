@@ -1,5 +1,5 @@
-// hand-rolled HS256 jwt for the admin login. only one user (me) so didn't pull a library,
-// stdlib hmac does the job
+// Minimal HS256 JWT issuing/verification for the single-admin session.
+// No external deps: stdlib crypto/hmac is enough for one symmetric secret.
 package auth
 
 import (

@@ -133,8 +133,9 @@ func mountStatic(mux *http.ServeMux, uploadsDir string) {
 	mux.Handle("GET /", cvSubdomain(sub, fileServer))
 }
 
-// if the host starts with "cv." (cv.semenovm.ru) show the resume at "/".
-// everything else just goes to the normal file server
+// cvSubdomain serves the resume page at the root path when the request comes in
+// on a host that starts with "cv." (e.g. cv.semenovm.ru). Any other path or host
+// falls through to the normal file server.
 func cvSubdomain(fsys fs.FS, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		host := r.Host
@@ -210,8 +211,9 @@ func loadConfig() config {
 	return c
 }
 
-// set JWT_SECRET in prod so logins survive a restart. locally it's fine to
-// just make a random one, it only means you get logged out on restart
+// JWT_SECRET should be set in production so sessions survive restarts;
+// falling back to a random secret is fine for local/dev runs (just invalidates
+// sessions across restarts).
 func loadJWTSecret() []byte {
 	if v := os.Getenv("JWT_SECRET"); v != "" {
 		secret, err := base64.StdEncoding.DecodeString(v)
@@ -228,9 +230,10 @@ func loadJWTSecret() []byte {
 	return secret
 }
 
-// ENCRYPTION_KEY has to stay the same every boot - it's what decrypts the spotify
-// tokens and my contact info in the db. can't randomize it like the jwt secret or
-// all the old encrypted rows become garbage. prints a fresh one on first run so setup is easy
+// ENCRYPTION_KEY must be set and stable: it decrypts spotify tokens and
+// profile PII already stored in the db. Unlike the JWT secret we can't just
+// generate a random one each boot — that would make existing encrypted rows
+// unreadable. We print a freshly generated one on first run to make setup easy.
 func loadEncryptionKey() string {
 	if v := os.Getenv("ENCRYPTION_KEY"); v != "" {
 		return v

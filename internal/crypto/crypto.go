@@ -1,4 +1,4 @@
-// aes-256-gcm so the sensitive db columns aren't just sitting there in plaintext
+// AES-256-GCM field-level encryption for sensitive columns at rest.
 package crypto
 
 import (
@@ -16,7 +16,7 @@ type Box struct {
 	gcm cipher.AEAD
 }
 
-// key is base64, must decode to 32 bytes for aes-256
+// NewBox builds an encryptor from a base64-encoded 32-byte key (AES-256).
 func NewBox(base64Key string) (*Box, error) {
 	key, err := base64.StdEncoding.DecodeString(base64Key)
 	if err != nil {
@@ -36,7 +36,7 @@ func NewBox(base64Key string) (*Box, error) {
 	return &Box{gcm: gcm}, nil
 }
 
-// output is base64 of nonce+ciphertext. empty stays empty, no point encrypting nothing
+// Encrypt returns base64(nonce || ciphertext). Empty input stays empty (no need to encrypt blanks).
 func (b *Box) Encrypt(plaintext string) (string, error) {
 	if plaintext == "" {
 		return "", nil
@@ -49,7 +49,7 @@ func (b *Box) Encrypt(plaintext string) (string, error) {
 	return base64.StdEncoding.EncodeToString(ciphertext), nil
 }
 
-// undo of Encrypt
+// Decrypt reverses Encrypt. Empty input stays empty.
 func (b *Box) Decrypt(encoded string) (string, error) {
 	if encoded == "" {
 		return "", nil

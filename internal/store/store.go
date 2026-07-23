@@ -30,7 +30,7 @@ func Open(path string, box *crypto.Box) (*Store, error) {
 	if err := s.migrate(); err != nil {
 		return nil, fmt.Errorf("migrate: %w", err)
 	}
-	if err := s.fixOldPlaintext(); err != nil {
+	if err := s.encryptLegacyPlaintext(); err != nil {
 		return nil, fmt.Errorf("encrypt legacy plaintext: %w", err)
 	}
 	if err := s.seed(); err != nil {
@@ -39,10 +39,11 @@ func Open(path string, box *crypto.Box) (*Store, error) {
 	return s, nil
 }
 
-// i added encryption later, so old rows still have plaintext in these columns.
-// on boot try to decrypt each - if it fails it was never encrypted, so encrypt it now.
-// saves me from writing a migration script by hand
-func (s *Store) fixOldPlaintext() error {
+// One-time upgrade path: rows written before field encryption was introduced
+// hold plaintext in columns that are now expected to hold ciphertext. On
+// boot, detect those (decrypt fails => it wasn't ciphertext) and re-encrypt
+// them in place, so existing installs don't need a manual backfill step.
+func (s *Store) encryptLegacyPlaintext() error {
 	if s.box == nil {
 		return nil
 	}
@@ -53,15 +54,15 @@ func (s *Store) fixOldPlaintext() error {
 		return err
 	}
 	if err == nil {
-		newEmail, changedEmail, err := s.encryptIfNeeded(email.String)
+		newEmail, changedEmail, err := s.reencryptIfPlaintext(email.String)
 		if err != nil {
 			return err
 		}
-		newPhone, changedPhone, err := s.encryptIfNeeded(phone.String)
+		newPhone, changedPhone, err := s.reencryptIfPlaintext(phone.String)
 		if err != nil {
 			return err
 		}
-		newTelegram, changedTelegram, err := s.encryptIfNeeded(telegram.String)
+		newTelegram, changedTelegram, err := s.reencryptIfPlaintext(telegram.String)
 		if err != nil {
 			return err
 		}
@@ -78,11 +79,11 @@ func (s *Store) fixOldPlaintext() error {
 		return err
 	}
 	if err == nil {
-		newRefresh, changedRefresh, err := s.encryptIfNeeded(refreshToken.String)
+		newRefresh, changedRefresh, err := s.reencryptIfPlaintext(refreshToken.String)
 		if err != nil {
 			return err
 		}
-		newAccess, changedAccess, err := s.encryptIfNeeded(accessToken.String)
+		newAccess, changedAccess, err := s.reencryptIfPlaintext(accessToken.String)
 		if err != nil {
 			return err
 		}
@@ -95,8 +96,10 @@ func (s *Store) fixOldPlaintext() error {
 	return nil
 }
 
-// leaves it alone if it already decrypts fine, else encrypts it. bool = did we change it
-func (s *Store) encryptIfNeeded(v string) (string, bool, error) {
+// reencryptIfPlaintext returns the value ready to store: unchanged if it's
+// already valid ciphertext, or freshly encrypted if decrypt failed (legacy
+// plaintext row). Reports whether it rewrote the value.
+func (s *Store) reencryptIfPlaintext(v string) (string, bool, error) {
 	if v == "" {
 		return v, false, nil
 	}
@@ -200,8 +203,8 @@ func (s *Store) migrate() error {
 	if _, err := s.db.Exec(movieSchema); err != nil {
 		return err
 	}
-	// stuff i added to the tables later. CREATE TABLE IF NOT EXISTS won't add
-	// new columns to a table that already exists, so patch them in with ALTER
+	// Columns added after the table already existed on older installs.
+	// CREATE TABLE IF NOT EXISTS above won't add these, so backfill via ALTER.
 	adds := []struct{ table, column, def string }{
 		{"skills", "level", "TEXT NOT NULL DEFAULT ''"},
 		{"profile", "rubik_label", "TEXT NOT NULL DEFAULT '// 3×3 · self-solving'"},
@@ -216,8 +219,9 @@ func (s *Store) migrate() error {
 	return nil
 }
 
-// only ALTERs if the column isn't there already, so calling it every boot is fine.
-// table/column/def are all hardcoded by me so no injection worry
+// addColumnIfMissing runs ALTER TABLE ADD COLUMN only when the column isn't
+// already present, so it's safe to call on every boot. table/column/def are
+// hardcoded by us, never user input.
 func (s *Store) addColumnIfMissing(table, column, def string) error {
 	rows, err := s.db.Query(fmt.Sprintf(`PRAGMA table_info(%s)`, table))
 	if err != nil {
@@ -320,8 +324,8 @@ type Message struct {
 
 var ErrNotFound = errors.New("not found")
 
-// if box is nil (like in tests) these just return the value untouched
-// so i don't have to null-check everywhere
+// encrypt/decrypt panic-free no-ops when box is nil (e.g. in tests), so callers
+// don't need to special-case it.
 func (s *Store) encrypt(v string) (string, error) {
 	if s.box == nil {
 		return v, nil
@@ -338,7 +342,7 @@ func (s *Store) decrypt(v string) (string, error) {
 
 // ---------- Profile ----------
 
-// email, phone, telegram get encrypted before hitting the db
+// PII fields encrypted at rest: email, phone, telegram.
 func (s *Store) GetProfile() (Profile, error) {
 	var p Profile
 	err := s.db.QueryRow(`SELECT first_name,last_name,role,location,tagline,about_ru,about_en,age,email,phone,telegram,github,photo,resume,rubik_label,rubik_title,rubik_text FROM profile WHERE id=1`).

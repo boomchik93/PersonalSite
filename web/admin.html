@@ -8,12 +8,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/assets/style.css">
   <link rel="stylesheet" href="/assets/admin.css">
 </head>
 <body>
-  <canvas id="bg-canvas"></canvas>
-  <div id="bg-orb"></div>
 
   <!-- Login -->
   <div id="login" class="admin-login hidden">
@@ -37,7 +34,6 @@
         <a href="/" class="nav__logo">МС</a>
         <span class="admin-nav__title">Админка сайта</span>
         <div class="nav__actions">
-          <button class="nav__icon" id="theme-toggle" type="button" aria-label="Переключить тему">☀</button>
           <a href="/" target="_blank" class="nav__btn admin-nav__view">Сайт ↗</a>
           <button class="nav__btn" id="logout-btn" type="button">Выйти</button>
           <button class="nav__icon nav__burger" id="menu-toggle" type="button" aria-label="Меню">☰</button>
@@ -52,7 +48,8 @@
         <button data-tab="skills" class="admin-tab">Навыки</button>
         <button data-tab="education" class="admin-tab">Образование</button>
         <button data-tab="interests" class="admin-tab">Увлечения</button>
-        <button data-tab="blog" class="admin-tab">Блог</button>
+        <button data-tab="rubik" class="admin-tab">Блок кубика</button>
+        <button data-tab="movies" class="admin-tab">Кино</button>
         <button data-tab="spotify" class="admin-tab">Spotify</button>
         <button data-tab="messages" class="admin-tab">Сообщения</button>
       </aside>
@@ -63,7 +60,8 @@
         <div id="tab-skills" class="tab hidden"></div>
         <div id="tab-education" class="tab hidden"></div>
         <div id="tab-interests" class="tab hidden"></div>
-        <div id="tab-blog" class="tab hidden"></div>
+        <div id="tab-rubik" class="tab hidden"></div>
+        <div id="tab-movies" class="tab hidden"></div>
         <div id="tab-spotify" class="tab hidden"></div>
         <div id="tab-messages" class="tab hidden"></div>
       </main>

@@ -4,325 +4,354 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Матвей Семёнов — Разработчик</title>
-  <meta name="description" content="Матвей Семёнов — разработчик из Перми. Backend, ML и Computer Vision.">
+  <meta name="description" content="Матвей Семёнов — backend-разработчик из Перми. Backend, ML и Computer Vision.">
   <meta property="og:title" content="Матвей Семёнов — Разработчик">
   <meta property="og:description" content="Backend, ML и Computer Vision. Пермь.">
   <meta property="og:type" content="website">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/assets/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://unpkg.com/three@0.128.0/examples/js/libs/fflate.min.js"></script>
+  <script src="https://unpkg.com/three@0.128.0/examples/js/loaders/FBXLoader.js"></script>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    html{scroll-behavior:smooth}
+    body{background:#f6f7f9;color:#14161c;font-family:'IBM Plex Sans',system-ui,sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+    a{color:#2563eb;text-decoration:none}
+    a:hover{color:#1d4ed8}
+    ::selection{background:#c7d5fb;color:#14161c}
+    @keyframes riseIn{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:none}}
+    @keyframes blink{0%,49%{opacity:1}50%,100%{opacity:0}}
+    @keyframes eq{0%,100%{transform:scaleY(.3)}50%{transform:scaleY(1)}}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    @keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-14px)}}
+    .fade{opacity:0;transform:translateY(22px);transition:opacity .7s cubic-bezier(.22,.61,.36,1),transform .7s cubic-bezier(.22,.61,.36,1)}
+    .fade.vis{opacity:1;transform:none}
+    @media (prefers-reduced-motion: reduce){.fade{opacity:1!important;transform:none!important;transition:none}}
+    .stg-grid{display:grid;grid-template-columns:1.02fr .98fr;gap:48px;align-items:center}
+    .slot{position:relative;border-radius:28px;overflow:hidden}
+    /* about workstation slot: break out wider than the content column */
+    .slot-wide{width:min(100vw - 40px,1560px);position:relative;left:50%;transform:translateX(-50%)}
+    .stage3d.rev .stg-grid > div:first-child{order:2}
+    @media (max-width:980px){
+      .stg-grid{grid-template-columns:1fr!important;gap:26px!important}
+      .slot{height:400px!important}
+      .stage3d.rev .stg-grid > div:first-child{order:0!important}
+      .hero{grid-template-columns:1fr!important;gap:8px!important;min-height:auto!important;padding-top:120px!important}
+      .hero > div:last-child{height:min(56vh,440px)!important;order:-1}
+      .two-col,.music-grid{grid-template-columns:1fr!important}
+      .skills-grid,.int-grid,.proj-grid{grid-template-columns:1fr 1fr!important}
+    }
+    @media (max-width:720px){
+      .navlinks{display:none!important}
+      .burger{display:grid!important;place-items:center}
+      .skills-grid,.int-grid,.proj-grid{grid-template-columns:1fr!important}
+      main{padding-left:20px!important;padding-right:20px!important}
+      section{padding-top:72px!important}
+      .slot{display:none!important}
+      .stage3d{padding:52px 0 8px!important}
+    }
+  </style>
 </head>
 <body>
-  <canvas id="bg-canvas"></canvas>
-  <div id="bg-orb"></div>
-  <div id="fav">
-    <div id="fav-fb">МС</div>
-    <img id="fav-img" alt="Матвей Семёнов" src="/uploads/photo.jpg">
-  </div>
+<canvas id="constellation" style="position:fixed;inset:0;width:100vw;height:100vh;z-index:0;pointer-events:none"></canvas>
+<canvas id="retroGl" style="position:fixed;inset:0;width:100vw;height:100vh;z-index:20;pointer-events:none"></canvas>
 
-  <!-- NAV -->
-  <nav class="nav" id="nav">
-    <div class="nav__inner">
-      <a href="#" class="nav__logo">МС</a>
-      <div class="nav__links">
-        <a href="#about">О себе</a>
-        <a href="#interests">Увлечения</a>
-        <a href="#skills">Навыки</a>
-        <a href="#education">Образование</a>
-        <a href="#projects">Проекты</a>
-        <a href="#blog">Блог</a>
-        <a href="#music">Музыка</a>
-        <a href="#contacts">Контакты</a>
+<div style="position:relative;z-index:1;min-height:100vh">
+
+  <nav id="siteNav" style="position:fixed;top:0;left:0;right:0;z-index:40;transition:background .3s,box-shadow .3s,backdrop-filter .3s">
+    <div style="max-width:1240px;margin:0 auto;padding:18px 28px;display:flex;align-items:center;justify-content:space-between;gap:24px">
+      <a href="#top" data-close-menu style="display:flex;align-items:center;gap:10px;color:#14161c;font-weight:700;letter-spacing:.02em">
+        <span style="display:grid;place-items:center;width:34px;height:34px;border-radius:9px;background:#2563eb;color:#fff;font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:600">МС</span>
+        <span style="font-size:15px">semenovm.ru</span>
+      </a>
+      <div style="display:flex;align-items:center;gap:26px;font-size:14px" class="navlinks">
+        <a href="#about" style="color:#4b515c">О себе</a>
+        <a href="#skills" style="color:#4b515c">Навыки</a>
+        <a href="#interests" style="color:#4b515c">Увлечения</a>
+        <a href="#projects" style="color:#4b515c">Проекты</a>
+        <a href="#music" style="color:#4b515c">Музыка</a>
+        <a href="/films" target="_blank" rel="noopener" style="color:#4b515c">Кино</a>
+        <a href="#contacts" style="display:inline-flex;align-items:center;gap:7px;padding:9px 16px;border-radius:999px;background:#14161c;color:#fff;font-weight:500">Написать</a>
       </div>
-      <div class="nav__actions">
-        <button class="nav__icon" id="theme-toggle" type="button" aria-label="Переключить тему">☀</button>
-        <button class="nav__icon nav__burger" id="menu-toggle" type="button" aria-label="Меню">☰</button>
+      <button type="button" id="burger-btn" class="burger" aria-label="Меню" style="display:none;width:42px;height:42px;border:1px solid #e7e9ee;border-radius:11px;background:#fff;color:#14161c;font-size:18px;cursor:pointer">☰</button>
+    </div>
+    <div id="mobile-menu-wrap" style="max-width:1240px;margin:0 auto;padding:0 28px;overflow:hidden;max-height:0;transition:max-height .35s ease">
+      <div style="display:flex;flex-direction:column;gap:2px;padding:6px 0 18px">
+        <a href="#about" data-close-menu style="padding:12px 4px;border-bottom:1px solid #eceef2;color:#14161c">О себе</a>
+        <a href="#skills" data-close-menu style="padding:12px 4px;border-bottom:1px solid #eceef2;color:#14161c">Навыки</a>
+        <a href="#interests" data-close-menu style="padding:12px 4px;border-bottom:1px solid #eceef2;color:#14161c">Увлечения</a>
+        <a href="#projects" data-close-menu style="padding:12px 4px;border-bottom:1px solid #eceef2;color:#14161c">Проекты</a>
+        <a href="#music" data-close-menu style="padding:12px 4px;border-bottom:1px solid #eceef2;color:#14161c">Музыка</a>
+        <a href="/films" target="_blank" rel="noopener" data-close-menu style="padding:12px 4px;border-bottom:1px solid #eceef2;color:#14161c">Кино</a>
+        <a href="#contacts" data-close-menu style="padding:12px 4px;color:#2563eb">Написать →</a>
       </div>
     </div>
   </nav>
 
-  <main id="app" aria-busy="true">
+  <main id="top" style="position:relative;z-index:1;max-width:1240px;margin:0 auto;padding:0 28px">
+
     <!-- HERO -->
-    <section class="hero">
-      <div class="hero__inner">
-        <div class="hero__kicker">SEMENOVM.RU · 2026</div>
-        <h1 class="hero__title">
-          <div class="hero__last" id="hero-last">СЕМЁНОВ</div>
-          <div class="hero__first neon" id="hero-first">МАТВЕЙ<span class="hero__cursor">▍</span></div>
+    <section style="min-height:100vh;display:grid;grid-template-columns:1.05fr .95fr;align-items:center;gap:40px;padding-top:96px;padding-bottom:40px" class="hero">
+      <div style="animation:riseIn .8s cubic-bezier(.22,.61,.36,1) both">
+        <div id="hero-kicker" style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#2563eb;letter-spacing:.02em;margin-bottom:26px">// backend engineer · Пермь</div>
+        <h1 style="font-size:clamp(44px,6.4vw,88px);line-height:.98;font-weight:700;letter-spacing:-.03em;margin-bottom:22px;text-wrap:balance">
+          <span id="hero-first">Матвей</span><br><span id="hero-last" style="color:#2563eb">Семёнов</span><span style="display:inline-block;width:.5ch;color:#2563eb;animation:blink 1.1s step-end infinite">▍</span>
         </h1>
-
-        <div class="hero__rings-wrap">
-          <div class="hero__rings" id="hero-rings">
-            <span class="ring ring--1"></span>
-            <span class="ring ring--2"></span>
-            <span class="dot dot--top"></span>
-            <span class="dot dot--right"></span>
-            <span class="dot dot--bottom"></span>
-            <span class="dot dot--left"></span>
-          </div>
+        <p id="hero-desc" style="max-width:440px;font-size:19px;line-height:1.55;color:#4b515c;margin-bottom:30px">Backend-разработчик. Строю высоконагруженные сервисы, ML- и computer-vision-конвейеры.</p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:34px">
+          <span style="font-family:'JetBrains Mono',monospace;font-size:12px;padding:7px 13px;border-radius:999px;border:1px solid #dfe2e8;color:#4b515c">Backend</span>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:12px;padding:7px 13px;border-radius:999px;border:1px solid #dfe2e8;color:#4b515c">Machine Learning</span>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:12px;padding:7px 13px;border-radius:999px;border:1px solid #dfe2e8;color:#4b515c">Computer Vision</span>
         </div>
-
-        <div class="hero__role-row">
-          <span class="rule"></span>
-          <span class="hero__role" id="hero-role">Разработчик · Developer</span>
-          <span class="rule"></span>
-        </div>
-
-        <div class="hero__badges">
-          <span class="badge">Backend</span>
-          <span class="badge">ML</span>
-          <span class="badge">Computer Vision</span>
-        </div>
-
-        <div class="hero__cta">
-          <a href="#contacts" class="btn-primary neon-btn">Написать →</a>
-          <a href="#projects" class="btn-ghost">Проекты</a>
-        </div>
-
-        <div class="hero__loc">
-          <span class="hero__loc-dot"></span>
-          <span id="hero-loc">Пермь · Perm</span>
+        <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center">
+          <a href="#contacts" style="display:inline-flex;align-items:center;gap:9px;padding:15px 26px;border-radius:12px;background:#2563eb;color:#fff;font-weight:500;font-size:15px;box-shadow:0 10px 24px -10px rgba(37,99,235,.6)">Написать →</a>
+          <a href="#projects" style="display:inline-flex;align-items:center;gap:9px;padding:15px 26px;border-radius:12px;background:#fff;border:1px solid #e0e3e9;color:#14161c;font-weight:500;font-size:15px">Проекты</a>
+          <a id="hero-tg" href="https://t.me/boomchik93" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:8px;padding:12px 4px;color:#4b515c;font-size:15px">✈ @boomchik93</a>
         </div>
       </div>
 
-      <div class="hero__scroll">
-        <div class="hero__scroll-line"></div>
-        <span class="hero__scroll-label">scroll</span>
-      </div>
-    </section>
-
-    <!-- BENTO DASHBOARD -->
-    <section class="bento">
-      <div class="bento__grid">
-        <div class="gc card-greeting">
-          <canvas id="spark-canvas" style="position:absolute;right:0;bottom:0;width:240px;height:110px;pointer-events:none;"></canvas>
-          <div class="card-greeting__label">// profile</div>
-          <h2 class="card-greeting__title" id="bento-greeting">Привет, я&#10;Матвей Семёнов</h2>
-          <p class="card-greeting__desc" id="bento-desc">Backend-инженер из Перми. Высоконагруженные системы, ML и компьютерное зрение.</p>
-          <a href="https://t.me/boomchik93" class="card-greeting__link" id="bento-tg">✈ @boomchik93</a>
-        </div>
-
-        <div class="gc bento-card">
-          <div class="bento-card__label">// status</div>
-          <div class="card-status__row">
-            <span class="status-dot"></span>
-            <span class="card-status__label">Открыт к работе</span>
+      <div style="position:relative;display:grid;place-items:center;height:min(72vh,560px)">
+        <div style="position:relative;width:min(78%,380px);aspect-ratio:1;animation:floaty 6s ease-in-out infinite">
+          <div style="position:absolute;inset:-16px;border-radius:50%;background:conic-gradient(from 0deg,#2563eb,#06b6d4,#7c3aed,#22d3ee,#2563eb);filter:blur(6px);opacity:.85;animation:spin 7s linear infinite"></div>
+          <div style="position:absolute;inset:-16px;border-radius:50%;background:conic-gradient(from 0deg,#2563eb,#06b6d4,#7c3aed,#22d3ee,#2563eb);animation:spin 7s linear infinite"></div>
+          <div style="position:absolute;inset:0;border-radius:50%;overflow:hidden;background:#fff;box-shadow:0 30px 60px -34px rgba(37,99,235,.6),inset 0 0 0 6px #fff">
+            <img id="hero-photo" src="/uploads/photo.jpg" alt="Матвей Семёнов" style="width:100%;height:100%;object-fit:cover;display:block">
           </div>
-          <p class="card-status__desc">Рассматриваю предложения: backend, ML, CV</p>
-          <div class="card-status__foot">
-            <div class="card-status__foot-label">LOCATION</div>
-            <div class="card-status__foot-value" id="status-city">Пермь</div>
-            <div class="card-status__foot-sub">Russia · UTC+5</div>
-          </div>
-        </div>
-
-        <div class="gc bento-card">
-          <div class="bento-card__label">// core stack</div>
-          <div id="stack-bars"></div>
-        </div>
-
-        <div class="gc bento-card">
-          <div class="bento-card__label">// activity</div>
-          <div class="card-activity__num" id="proj-count">3+</div>
-          <div class="card-activity__label">завершённых проектов</div>
-          <div class="card-activity__bars" id="activity-bars"></div>
-        </div>
-
-        <a href="#blog" class="gc bento-card card-blog">
-          <div class="bento-card__label">// latest post</div>
-          <span class="card-blog__tag" id="blog-teaser-tag">Blog</span>
-          <h3 class="card-blog__title" id="blog-teaser-title">Записей пока нет</h3>
-          <div class="card-blog__date" id="blog-teaser-date"></div>
-          <div class="card-blog__read">Читать →</div>
-        </a>
-
-        <div class="gc bento-card card-now" id="bento-now">
-          <div class="card-now__label"><span class="card-now__dot"></span>now playing</div>
-          <div class="card-now-content">Загрузка…</div>
+          <span style="position:absolute;bottom:6%;right:-6%;font-family:'JetBrains Mono',monospace;font-size:11px;background:#14161c;color:#fff;padding:6px 11px;border-radius:999px;box-shadow:0 8px 18px -8px rgba(20,22,28,.5)">// это я</span>
         </div>
       </div>
     </section>
 
-    <!-- ABOUT -->
-    <section id="about" class="section">
-      <div class="container">
-        <div class="section__head" data-fade>
-          <span class="section__num">01</span>
-          <span class="section__dot">·</span>
-          <span class="section__label">About Me</span>
-          <span class="section__rule"></span>
-        </div>
-        <h2 class="section__title" id="about-h">Инженер с опытом&#10;в прикладном ML</h2>
-        <div class="about">
-          <div class="about__text" data-fade>
-            <p class="about__p1" id="about-ru"></p>
-            <p class="about__p2" id="about-en"></p>
-          </div>
-          <aside class="gc facts-card" data-fade>
-            <div class="facts-card__label">// quick facts</div>
-            <div id="facts-list"></div>
-          </aside>
-        </div>
+    <!-- ABOUT: BIG RETRO WORKSTATION -->
+    <section id="about" style="padding:64px 0 44px">
+      <div class="fade" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;margin-bottom:24px">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#2563eb">// workstation · online</div>
+        <div style="display:inline-flex;align-items:center;gap:9px;padding:8px 14px;border-radius:999px;background:rgba(37,99,235,.09);color:#2563eb;font-weight:500;font-size:14px"><span style="width:9px;height:9px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 4px rgba(34,197,94,.18)"></span>Открыт к работе</div>
       </div>
-    </section>
-
-    <!-- INTERESTS -->
-    <section id="interests" class="section">
-      <div class="container">
-        <div class="section__head" data-fade>
-          <span class="section__num">02</span>
-          <span class="section__dot">·</span>
-          <span class="section__label">Interests</span>
-          <span class="section__rule"></span>
+      <div id="slot-crt" class="slot slot-wide" style="height:min(70vh,640px);background:radial-gradient(130% 120% at 50% 18%,#ffffff 0%,#eef1f8 56%,#e4e9f5 100%);box-shadow:inset 0 1px 0 #fff,0 64px 120px -64px rgba(37,99,235,.5)">
+        <span style="position:absolute;top:17px;left:19px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#9aa0ab;z-index:30">// прокрутите — станция вращается</span>
+        <div style="position:absolute;inset:0;display:flex;align-items:center;padding:0 clamp(22px,4vw,52px);z-index:30;pointer-events:none">
+          <p id="about-text" style="font-size:clamp(17px,2vw,21px);line-height:1.5;color:#2a2f38;max-width:520px;font-weight:500;text-wrap:balance">Backend-инженер из Перми.</p>
         </div>
-        <div class="interests-grid" id="interests-grid"></div>
       </div>
     </section>
 
     <!-- SKILLS -->
-    <section id="skills" class="section">
-      <div class="container">
-        <div class="section__head" data-fade>
-          <span class="section__num">03</span>
-          <span class="section__dot">·</span>
-          <span class="section__label">Skills</span>
-          <span class="section__rule"></span>
+    <section id="skills" style="padding:96px 0 40px">
+      <div class="fade" style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:16px;margin-bottom:40px">
+        <div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#2563eb;margin-bottom:14px">// core stack</div>
+          <h2 style="font-size:clamp(28px,3.4vw,42px);letter-spacing:-.02em;font-weight:700">Навыки и технологии</h2>
         </div>
-        <div class="skills-grid" id="skills-grid"></div>
+        <div style="display:flex;gap:16px;font-family:'JetBrains Mono',monospace;font-size:12px;color:#9aa0ab;flex-wrap:wrap">
+          <span style="display:inline-flex;align-items:center;gap:7px"><span style="width:9px;height:9px;border-radius:3px;background:#2563eb"></span>основной</span>
+          <span style="display:inline-flex;align-items:center;gap:7px"><span style="width:9px;height:9px;border-radius:3px;background:#93b4fb"></span>уверенно</span>
+          <span style="display:inline-flex;align-items:center;gap:7px"><span style="width:9px;height:9px;border-radius:3px;background:#d3dae6"></span>рабочий</span>
+        </div>
+      </div>
+      <div id="skills-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:18px" class="skills-grid">
+        <div class="fade" style="background:#fff;border:1px solid #e7e9ee;border-radius:18px;padding:24px">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#9aa0ab;margin-bottom:18px">// языки</div>
+          <div style="display:flex;flex-wrap:wrap;gap:9px">
+            <span style="display:inline-flex;align-items:center;gap:8px;padding:9px 14px;border-radius:11px;background:#2563eb;color:#fff;font-weight:500;font-size:14px">Python<span style="font-family:'JetBrains Mono',monospace;font-size:10px;opacity:.8">основной</span></span>
+            <span style="display:inline-flex;align-items:center;gap:8px;padding:9px 14px;border-radius:11px;background:rgba(37,99,235,.1);color:#1d4ed8;font-weight:500;font-size:14px">Go<span style="font-family:'JetBrains Mono',monospace;font-size:10px;opacity:.7">уверенно</span></span>
+            <span style="display:inline-flex;align-items:center;gap:8px;padding:9px 14px;border-radius:11px;background:rgba(37,99,235,.1);color:#1d4ed8;font-weight:500;font-size:14px">C++<span style="font-family:'JetBrains Mono',monospace;font-size:10px;opacity:.7">уверенно</span></span>
+            <span style="display:inline-flex;align-items:center;gap:8px;padding:9px 14px;border-radius:11px;background:#f0f2f6;color:#4b515c;font-weight:500;font-size:14px">C#<span style="font-family:'JetBrains Mono',monospace;font-size:10px;opacity:.6">рабочий</span></span>
+            <span style="display:inline-flex;align-items:center;gap:8px;padding:9px 14px;border-radius:11px;background:#f0f2f6;color:#4b515c;font-weight:500;font-size:14px">SQL</span>
+          </div>
+        </div>
+        <div class="fade" style="background:#fff;border:1px solid #e7e9ee;border-radius:18px;padding:24px">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#9aa0ab;margin-bottom:18px">// backend</div>
+          <div style="display:flex;flex-wrap:wrap;gap:9px">
+            <span style="display:inline-flex;padding:9px 14px;border-radius:11px;background:#2563eb;color:#fff;font-weight:500;font-size:14px">FastAPI</span>
+            <span style="display:inline-flex;padding:9px 14px;border-radius:11px;background:rgba(37,99,235,.1);color:#1d4ed8;font-weight:500;font-size:14px">PostgreSQL</span>
+            <span style="display:inline-flex;padding:9px 14px;border-radius:11px;background:rgba(37,99,235,.1);color:#1d4ed8;font-weight:500;font-size:14px">Redis</span>
+            <span style="display:inline-flex;padding:9px 14px;border-radius:11px;background:#f0f2f6;color:#4b515c;font-weight:500;font-size:14px">Docker</span>
+            <span style="display:inline-flex;padding:9px 14px;border-radius:11px;background:#f0f2f6;color:#4b515c;font-weight:500;font-size:14px">gRPC</span>
+            <span style="display:inline-flex;padding:9px 14px;border-radius:11px;background:#f0f2f6;color:#4b515c;font-weight:500;font-size:14px">RabbitMQ</span>
+          </div>
+        </div>
+        <div class="fade" style="background:#fff;border:1px solid #e7e9ee;border-radius:18px;padding:24px">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#9aa0ab;margin-bottom:18px">// ml · cv</div>
+          <div style="display:flex;flex-wrap:wrap;gap:9px">
+            <span style="display:inline-flex;padding:9px 14px;border-radius:11px;background:#2563eb;color:#fff;font-weight:500;font-size:14px">PyTorch</span>
+            <span style="display:inline-flex;padding:9px 14px;border-radius:11px;background:rgba(37,99,235,.1);color:#1d4ed8;font-weight:500;font-size:14px">OpenCV</span>
+            <span style="display:inline-flex;padding:9px 14px;border-radius:11px;background:#f0f2f6;color:#4b515c;font-weight:500;font-size:14px">NumPy</span>
+            <span style="display:inline-flex;padding:9px 14px;border-radius:11px;background:#f0f2f6;color:#4b515c;font-weight:500;font-size:14px">scikit-learn</span>
+            <span style="display:inline-flex;padding:9px 14px;border-radius:11px;background:#f0f2f6;color:#4b515c;font-weight:500;font-size:14px">ONNX</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- INTERESTS + RUBIK -->
+    <section id="interests" class="stage3d" style="padding:84px 0 50px">
+      <div class="fade stg-grid">
+        <div id="slot-rubik" class="slot" style="height:540px;background:radial-gradient(130% 120% at 50% 22%,#ffffff 0%,#eef1f8 56%,#e4e9f5 100%);box-shadow:inset 0 1px 0 #fff,0 48px 92px -60px rgba(37,99,235,.5)">
+          <div style="position:absolute;left:12%;right:12%;bottom:9%;height:12%;background:radial-gradient(60% 100% at 50% 50%,rgba(37,99,235,.22),transparent 72%);filter:blur(9px)"></div>
+          <span id="rubik-label" style="position:absolute;top:17px;left:19px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#9aa0ab">// 3×3 · self-solving</span>
+        </div>
+        <div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#2563eb;margin-bottom:16px">// interests</div>
+          <h2 id="rubik-title" style="font-size:clamp(26px,3.2vw,40px);letter-spacing:-.02em;font-weight:700;line-height:1.08;margin-bottom:8px;text-wrap:balance">Разбираю сложное — и собираю обратно</h2>
+          <p id="rubik-text" style="font-size:17px;line-height:1.55;color:#4b515c;margin-bottom:24px;max-width:520px">Любая задача — как кубик Рубика: сначала хаос вращений, потом система. Он сам крутит грани, рассыпается на кубики и собирается заново. А между коммитами —</p>
+          <div id="interests-list" style="display:flex;flex-direction:column;gap:12px">
+            <div style="display:flex;gap:16px;align-items:flex-start;background:#fff;border:1px solid #e7e9ee;border-radius:16px;padding:18px 20px">
+              <span style="font-size:26px;color:#2563eb;line-height:1">♪</span>
+              <div><h3 style="font-size:18px;font-weight:600;margin-bottom:3px">Гитара</h3><p style="color:#626873;line-height:1.5;font-size:15px">Русский рок: Noize MC, Нервы, Сплин. Аккорды между коммитами.</p></div>
+            </div>
+            <div style="display:flex;gap:16px;align-items:flex-start;background:#fff;border:1px solid #e7e9ee;border-radius:16px;padding:18px 20px">
+              <span style="font-size:26px;color:#2563eb;line-height:1">❦</span>
+              <div><h3 style="font-size:18px;font-weight:600;margin-bottom:3px">Литература</h3><p style="color:#626873;line-height:1.5;font-size:15px">Ремарк, Оскар Уайльд, Ролан Барт. Проза — как хорошая архитектура.</p></div>
+            </div>
+            <div style="display:flex;gap:16px;align-items:flex-start;background:#fff;border:1px solid #e7e9ee;border-radius:16px;padding:18px 20px">
+              <span style="font-size:26px;color:#2563eb;line-height:1">◉</span>
+              <div><h3 style="font-size:18px;font-weight:600;margin-bottom:3px">Интернет-юмор</h3><p style="color:#626873;line-height:1.5;font-size:15px">Мемы и культура сообществ — то, что делает разработку человечнее.</p></div>
+            </div>
+          </div>
+          <a href="/films" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:10px;margin-top:18px;padding:14px 20px;border-radius:14px;background:#14161c;color:#fff;font-weight:500;font-size:15px">🎬 Мои фильмы и сериалы — с оценками <span style="opacity:.7">↗</span></a>
+        </div>
       </div>
     </section>
 
     <!-- EDUCATION -->
-    <section id="education" class="section">
-      <div class="container">
-        <div class="section__head" data-fade>
-          <span class="section__num">04</span>
-          <span class="section__dot">·</span>
-          <span class="section__label">Education</span>
-          <span class="section__rule"></span>
+    <section id="education" style="padding:96px 0 40px">
+      <div class="fade" style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#2563eb;margin-bottom:28px">// education</div>
+      <div class="fade" id="edu-card" style="background:#fff;border:1px solid #e7e9ee;border-radius:20px;padding:30px 32px">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:14px;color:#2563eb">2021 — 2025</div>
+        <div>
+          <h3 style="font-size:22px;font-weight:600;margin-bottom:6px">Пермский государственный университет</h3>
+          <div style="color:#626873;margin-bottom:12px">Прикладная математика и информатика</div>
+          <p style="color:#626873;line-height:1.6;max-width:640px">Алгоритмы, математическая статистика, машинное обучение и системное программирование. Дипломные проекты — на стыке backend и компьютерного зрения.</p>
         </div>
-        <div class="edu-list" id="edu-list"></div>
       </div>
     </section>
 
     <!-- PROJECTS -->
-    <section id="projects" class="section">
-      <div class="container">
-        <div class="section__head" data-fade>
-          <span class="section__num">05</span>
-          <span class="section__dot">·</span>
-          <span class="section__label">Projects</span>
-          <span class="section__rule"></span>
-        </div>
-        <div class="projects-grid" id="projects-grid"></div>
-      </div>
-    </section>
-
-    <!-- BLOG -->
-    <section id="blog" class="section">
-      <div class="container">
-        <div class="section__head" data-fade>
-          <span class="section__num">06</span>
-          <span class="section__dot">·</span>
-          <span class="section__label">Blog</span>
-          <span class="section__rule"></span>
-        </div>
-        <div class="blog-feed" id="blog-feed"></div>
-        <div class="blog-more-wrap">
-          <button class="ghost-btn hidden" id="blog-more" type="button">Показать ещё</button>
-        </div>
+    <section id="projects" style="padding:96px 0 40px">
+      <div class="fade" style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#2563eb;margin-bottom:28px">// projects</div>
+      <div id="projects-grid" style="display:grid;grid-template-columns:repeat(2,1fr);gap:18px" class="proj-grid">
+        <a href="#" class="fade proj" style="display:block;background:#fff;border:1px solid #e7e9ee;border-radius:20px;padding:28px;transition:transform .35s cubic-bezier(.22,.61,.36,1),box-shadow .35s;box-shadow:0 0 0 rgba(0,0,0,0)">
+          <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:60px">
+            <span style="font-family:'JetBrains Mono',monospace;font-size:12px;padding:6px 11px;border-radius:8px;background:rgba(37,99,235,.09);color:#2563eb">C++ · ESP32</span>
+            <span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#c3c8d1">01</span>
+          </div>
+          <h3 style="font-size:24px;font-weight:600;margin-bottom:8px">Buckshot Roulette Device</h3>
+          <p style="color:#626873;line-height:1.55;margin-bottom:18px">Аппаратная реализация игры на ESP32: прошивка на C++, дисплей, звук и тактильная отдача. Своя схемотехника и корпус.</p>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;font-family:'JetBrains Mono',monospace;font-size:12px;color:#9aa0ab">
+            <span>C++</span><span>·</span><span>ESP32</span><span>·</span><span>Embedded</span>
+          </div>
+        </a>
+        <a href="#" class="fade proj" style="display:block;background:#fff;border:1px solid #e7e9ee;border-radius:20px;padding:28px;transition:transform .35s cubic-bezier(.22,.61,.36,1),box-shadow .35s;box-shadow:0 0 0 rgba(0,0,0,0)">
+          <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:60px">
+            <span style="font-family:'JetBrains Mono',monospace;font-size:12px;padding:6px 11px;border-radius:8px;background:rgba(37,99,235,.09);color:#2563eb">C++ · Backend</span>
+            <span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#c3c8d1">02</span>
+          </div>
+          <h3 style="font-size:24px;font-weight:600;margin-bottom:8px">High-Perf Web Scraper</h3>
+          <p style="color:#626873;line-height:1.55;margin-bottom:18px">Многопоточный скрапер на C++ с асинхронными запросами и пулом соединений. Парсинг и нормализация данных на лету.</p>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;font-family:'JetBrains Mono',monospace;font-size:12px;color:#9aa0ab">
+            <span>C++</span><span>·</span><span>libcurl</span><span>·</span><span>Multithreading</span>
+          </div>
+        </a>
+        <a href="#" class="fade proj" style="display:block;background:#fff;border:1px solid #e7e9ee;border-radius:20px;padding:28px;transition:transform .35s cubic-bezier(.22,.61,.36,1),box-shadow .35s;box-shadow:0 0 0 rgba(0,0,0,0)">
+          <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:60px">
+            <span style="font-family:'JetBrains Mono',monospace;font-size:12px;padding:6px 11px;border-radius:8px;background:rgba(37,99,235,.09);color:#2563eb">JS · VK API</span>
+            <span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#c3c8d1">03</span>
+          </div>
+          <h3 style="font-size:24px;font-weight:600;margin-bottom:8px">VK Mini App</h3>
+          <p style="color:#626873;line-height:1.55;margin-bottom:18px">Мини-приложение внутри VK: интеграция с VK Bridge, аккуратный UI и лёгкий backend на Python для бизнес-логики.</p>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;font-family:'JetBrains Mono',monospace;font-size:12px;color:#9aa0ab">
+            <span>JavaScript</span><span>·</span><span>VK Bridge</span><span>·</span><span>Python</span>
+          </div>
+        </a>
+        <a href="#" class="fade proj" style="display:block;background:#fff;border:1px solid #e7e9ee;border-radius:20px;padding:28px;transition:transform .35s cubic-bezier(.22,.61,.36,1),box-shadow .35s;box-shadow:0 0 0 rgba(0,0,0,0)">
+          <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:60px">
+            <span style="font-family:'JetBrains Mono',monospace;font-size:12px;padding:6px 11px;border-radius:8px;background:rgba(37,99,235,.09);color:#2563eb">Python · CV</span>
+            <span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#c3c8d1">04</span>
+          </div>
+          <h3 style="font-size:24px;font-weight:600;margin-bottom:8px">CV Inference Pipeline</h3>
+          <p style="color:#626873;line-height:1.55;margin-bottom:18px">Конвейер инференса компьютерного зрения: предобработка, батчинг, экспорт моделей в ONNX и REST-раздача результатов.</p>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;font-family:'JetBrains Mono',monospace;font-size:12px;color:#9aa0ab">
+            <span>PyTorch</span><span>·</span><span>OpenCV</span><span>·</span><span>FastAPI</span>
+          </div>
+        </a>
       </div>
     </section>
 
     <!-- MUSIC -->
-    <section id="music" class="section">
-      <div class="container">
-        <div class="section__head" data-fade>
-          <span class="section__num">07</span>
-          <span class="section__dot">·</span>
-          <span class="section__label">Music</span>
-          <span class="section__rule"></span>
+    <section id="music" style="padding:96px 0 40px">
+      <div class="fade" style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#2563eb;margin-bottom:28px">// music</div>
+      <div style="display:grid;grid-template-columns:.85fr 1.15fr;gap:18px;align-items:start" class="music-grid">
+        <div id="music-now" class="fade" style="background:linear-gradient(160deg,#1d2433,#14161c);color:#fff;border-radius:22px;padding:28px;min-height:100%">
+          <div style="display:flex;align-items:center;gap:9px;font-family:'JetBrains Mono',monospace;font-size:12px;color:#9fb4ff;margin-bottom:24px"><span style="width:8px;height:8px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 4px rgba(34,197,94,.25)"></span>now playing · spotify</div>
+          <div style="display:flex;gap:16px;align-items:center;margin-bottom:22px">
+            <div style="width:72px;height:72px;border-radius:14px;background:linear-gradient(135deg,#2563eb,#4f46e5);display:grid;place-items:center;font-size:26px;flex:none">♫</div>
+            <div style="min-width:0">
+              <div style="font-size:18px;font-weight:600;margin-bottom:4px">Выхода нет</div>
+              <div style="color:#a7adba">Сплин</div>
+            </div>
+          </div>
+          <div style="height:5px;border-radius:999px;background:rgba(255,255,255,.14);overflow:hidden;margin-bottom:8px"><div style="width:42%;height:100%;background:#2563eb"></div></div>
+          <div style="display:flex;justify-content:space-between;font-family:'JetBrains Mono',monospace;font-size:12px;color:#8f96a5;margin-bottom:22px"><span>1:47</span><span>4:11</span></div>
+          <div style="display:flex;align-items:flex-end;gap:4px;height:34px">
+            <span style="flex:1;background:#2563eb;border-radius:3px;height:100%;transform-origin:bottom;animation:eq .9s ease-in-out infinite;animation-delay:0s"></span>
+            <span style="flex:1;background:#2563eb;border-radius:3px;height:100%;transform-origin:bottom;animation:eq .9s ease-in-out infinite;animation-delay:.15s"></span>
+            <span style="flex:1;background:#2563eb;border-radius:3px;height:100%;transform-origin:bottom;animation:eq .9s ease-in-out infinite;animation-delay:.3s"></span>
+            <span style="flex:1;background:#2563eb;border-radius:3px;height:100%;transform-origin:bottom;animation:eq .9s ease-in-out infinite;animation-delay:.45s"></span>
+            <span style="flex:1;background:#2563eb;border-radius:3px;height:100%;transform-origin:bottom;animation:eq .9s ease-in-out infinite;animation-delay:.6s"></span>
+            <span style="flex:1;background:#2563eb;border-radius:3px;height:100%;transform-origin:bottom;animation:eq .9s ease-in-out infinite;animation-delay:.75s"></span>
+            <span style="flex:1;background:#2563eb;border-radius:3px;height:100%;transform-origin:bottom;animation:eq .9s ease-in-out infinite;animation-delay:.9s"></span>
+          </div>
         </div>
-        <div class="music-grid">
-          <div class="gc music-now-card" id="music-now"></div>
-          <div class="gc music-top-card">
-            <div class="music-top-card__label" id="music-top-label">// top tracks this month</div>
-            <div class="top-cols" id="music-top"></div>
+        <div class="fade" style="background:#fff;border:1px solid #e7e9ee;border-radius:22px;padding:28px">
+          <div id="music-top-label" style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#9aa0ab;margin-bottom:20px">// топ за июль 2026</div>
+          <div id="music-tracks" style="display:flex;flex-direction:column">
+            <div style="display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid #eceef2"><span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#2563eb;width:20px">1</span><span style="width:42px;height:42px;border-radius:9px;background:#eef1f8;display:grid;place-items:center;color:#2563eb;flex:none">♪</span><span style="flex:1;min-width:0"><span style="display:block;font-weight:500">Выключаю телефон</span><span style="display:block;color:#9aa0ab;font-size:13px">Noize MC</span></span><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#9aa0ab">184×</span></div>
+            <div style="display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid #eceef2"><span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#2563eb;width:20px">2</span><span style="width:42px;height:42px;border-radius:9px;background:#eef1f8;display:grid;place-items:center;color:#2563eb;flex:none">♪</span><span style="flex:1;min-width:0"><span style="display:block;font-weight:500">Самый дорогой человек</span><span style="display:block;color:#9aa0ab;font-size:13px">Нервы</span></span><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#9aa0ab">156×</span></div>
+            <div style="display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid #eceef2"><span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#2563eb;width:20px">3</span><span style="width:42px;height:42px;border-radius:9px;background:#eef1f8;display:grid;place-items:center;color:#2563eb;flex:none">♪</span><span style="flex:1;min-width:0"><span style="display:block;font-weight:500">Выхода нет</span><span style="display:block;color:#9aa0ab;font-size:13px">Сплин</span></span><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#9aa0ab">143×</span></div>
+            <div style="display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid #eceef2"><span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#2563eb;width:20px">4</span><span style="width:42px;height:42px;border-radius:9px;background:#eef1f8;display:grid;place-items:center;color:#2563eb;flex:none">♪</span><span style="flex:1;min-width:0"><span style="display:block;font-weight:500">Кисет</span><span style="display:block;color:#9aa0ab;font-size:13px">Noize MC</span></span><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#9aa0ab">128×</span></div>
+            <div style="display:flex;align-items:center;gap:14px;padding:12px 0"><span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#2563eb;width:20px">5</span><span style="width:42px;height:42px;border-radius:9px;background:#eef1f8;display:grid;place-items:center;color:#2563eb;flex:none">♪</span><span style="flex:1;min-width:0"><span style="display:block;font-weight:500">Романс</span><span style="display:block;color:#9aa0ab;font-size:13px">Сплин</span></span><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#9aa0ab">119×</span></div>
           </div>
         </div>
       </div>
     </section>
 
     <!-- CONTACTS -->
-    <section id="contacts" class="section">
-      <div class="container">
-        <div class="section__head" data-fade>
-          <span class="section__num">08</span>
-          <span class="section__dot">·</span>
-          <span class="section__label">Contacts</span>
-          <span class="section__rule"></span>
-        </div>
-        <div class="contacts-grid">
-          <div data-fade>
-            <h2 class="contacts__title">Хотите узнать больше?</h2>
-            <p class="contacts__desc">Скачайте резюме или напишите напрямую — отвечаю в течение дня.</p>
-            <div class="socials" id="socials-grid"></div>
-            <a href="/uploads/resume.pdf" class="btn-primary neon-btn" id="resume-link" download>Скачать резюме ↓</a>
+    <section id="contacts" style="padding:96px 0 60px">
+      <div class="fade" style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#2563eb;margin-bottom:28px">// contacts</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:44px;align-items:start" class="two-col">
+        <div class="fade">
+          <h2 style="font-size:clamp(28px,3.4vw,42px);letter-spacing:-.02em;font-weight:700;margin-bottom:16px;text-wrap:balance">Хотите узнать больше?</h2>
+          <p style="font-size:18px;line-height:1.6;color:#4b515c;margin-bottom:28px">Скачайте резюме или напишите напрямую — отвечаю в течение дня.</p>
+          <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:26px">
+            <a id="contact-tg" href="https://t.me/boomchik93" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:14px;background:#fff;border:1px solid #e7e9ee;border-radius:14px;padding:16px 18px;color:#14161c"><span style="width:40px;height:40px;border-radius:10px;background:rgba(37,99,235,.1);display:grid;place-items:center;color:#2563eb;font-size:18px">✈</span><span><span style="display:block;font-family:'JetBrains Mono',monospace;font-size:11px;color:#9aa0ab">TELEGRAM</span><span id="contact-tg-h" style="display:block;font-weight:500">@boomchik93</span></span></a>
+            <a id="contact-email" href="mailto:boomchick93@yandex.ru" style="display:flex;align-items:center;gap:14px;background:#fff;border:1px solid #e7e9ee;border-radius:14px;padding:16px 18px;color:#14161c"><span style="width:40px;height:40px;border-radius:10px;background:rgba(37,99,235,.1);display:grid;place-items:center;color:#2563eb;font-size:18px">✉</span><span><span style="display:block;font-family:'JetBrains Mono',monospace;font-size:11px;color:#9aa0ab">EMAIL</span><span id="contact-email-h" style="display:block;font-weight:500">boomchick93@yandex.ru</span></span></a>
           </div>
-
-          <form class="gc cform" id="contact-form" data-fade>
-            <div class="cform__label">// send a message</div>
-            <div class="cform__fields">
-              <div>
-                <label class="cform__field-label">Ваше имя *</label>
-                <input class="cform__input" name="name" type="text" placeholder="Иван Иванов" required maxlength="120">
-              </div>
-              <div>
-                <label class="cform__field-label">Email</label>
-                <input class="cform__input" name="email" type="email" placeholder="ivan@example.com" maxlength="160">
-              </div>
-              <div>
-                <label class="cform__field-label">Сообщение *</label>
-                <textarea class="cform__input cform__area" name="message" placeholder="Привет! Хочу обсудить..." required maxlength="4000" rows="4"></textarea>
-              </div>
-              <button class="cform__btn" type="submit">Отправить →</button>
-              <span class="cform__status" id="cform-status"></span>
-            </div>
-          </form>
+          <a id="resume-link" href="/uploads/resume.pdf" download style="display:inline-flex;align-items:center;gap:9px;padding:15px 26px;border-radius:12px;background:#2563eb;color:#fff;font-weight:500;font-size:15px;box-shadow:0 10px 24px -10px rgba(37,99,235,.6)">Скачать резюме ↓</a>
         </div>
+        <form class="fade" id="contact-form" style="background:#fff;border:1px solid #e7e9ee;border-radius:22px;padding:28px;box-shadow:0 24px 44px -34px rgba(20,22,28,.35)">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#9aa0ab;margin-bottom:20px">// send a message</div>
+          <div style="display:flex;flex-direction:column;gap:16px">
+            <label style="display:block"><span style="display:block;font-size:13px;color:#626873;margin-bottom:7px">Ваше имя *</span><input name="name" type="text" placeholder="Иван Иванов" required style="width:100%;padding:13px 15px;border:1px solid #e0e3e9;border-radius:11px;font-family:inherit;font-size:15px;background:#fafbfc;color:#14161c" /></label>
+            <label style="display:block"><span style="display:block;font-size:13px;color:#626873;margin-bottom:7px">Email</span><input name="email" type="email" placeholder="ivan@example.com" style="width:100%;padding:13px 15px;border:1px solid #e0e3e9;border-radius:11px;font-family:inherit;font-size:15px;background:#fafbfc;color:#14161c" /></label>
+            <label style="display:block"><span style="display:block;font-size:13px;color:#626873;margin-bottom:7px">Сообщение *</span><textarea name="message" rows="4" placeholder="Привет! Хочу обсудить…" required style="width:100%;padding:13px 15px;border:1px solid #e0e3e9;border-radius:11px;font-family:inherit;font-size:15px;background:#fafbfc;color:#14161c;resize:vertical"></textarea></label>
+            <button type="submit" style="padding:14px;border:none;border-radius:11px;background:#14161c;color:#fff;font-family:inherit;font-size:15px;font-weight:500;cursor:pointer">Отправить →</button>
+            <span id="cform-status" style="font-size:13px;color:#22a55b;min-height:18px"></span>
+          </div>
+        </form>
       </div>
     </section>
   </main>
 
-  <footer class="footer">
-    <div class="footer__inner">
-      <span id="footer-copy">© 2026 Матвей Семёнов</span>
-      <span>Made with care · <a href="https://t.me/boomchik93" id="footer-handle">@boomchik93</a></span>
+  <footer style="position:relative;z-index:1;border-top:1px solid #e7e9ee;margin-top:40px">
+    <div style="max-width:1240px;margin:0 auto;padding:26px 28px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;font-size:14px;color:#9aa0ab">
+      <span>© 2026 Матвей Семёнов</span>
+      <span>Пермь · <a href="https://t.me/boomchik93" target="_blank" rel="noopener">@boomchik93</a></span>
     </div>
   </footer>
 
-  <!-- Lightbox -->
-  <div class="lightbox hidden" id="lightbox">
-    <button class="lightbox__close" id="lightbox-close" type="button" aria-label="Закрыть">✕</button>
-    <button class="lightbox__nav lightbox__prev" id="lightbox-prev" type="button" aria-label="Предыдущее фото">‹</button>
-    <img class="lightbox__img" id="lightbox-img" alt="">
-    <button class="lightbox__nav lightbox__next" id="lightbox-next" type="button" aria-label="Следующее фото">›</button>
-    <div class="lightbox__counter" id="lightbox-counter"></div>
-  </div>
-
-  <!-- Mobile menu -->
-  <div class="mobile-menu hidden" id="mobile-menu">
-    <a href="#about">О себе</a>
-    <a href="#interests">Увлечения</a>
-    <a href="#skills">Навыки</a>
-    <a href="#education">Образование</a>
-    <a href="#projects">Проекты</a>
-    <a href="#blog">Блог</a>
-    <a href="#music">Музыка</a>
-    <a href="#contacts">Контакты</a>
-  </div>
-
-  <script src="/assets/app.js"></script>
+<script src="/assets/app.js"></script>
 </body>
 </html>

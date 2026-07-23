@@ -1,169 +1,209 @@
 'use strict';
 
+/* ============================================================
+   Semenov.dc — light redesign, production front-end.
+   Content is pulled from the Go backend (/api/site, /api/spotify/*,
+   /api/contact). The retro workstation (FBX) and Rubik's cube are
+   rendered with Three.js r128.
+   ============================================================ */
+
 function esc(s) {
   return String(s == null ? '' : s)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
+function $(id) { return document.getElementById(id); }
+function setText(id, v) { const el = $(id); if (el && v != null && v !== '') el.textContent = v; }
 
-const ICONS = {
-  telegram: '✈',
-  github: '🐙',
-  email: '📧',
-  phone: '📞',
+/* ---------- Nav / menu / fades ---------- */
+
+function initNav() {
+  const nav = $('siteNav');
+  if (nav) {
+    const apply = () => {
+      const on = scrollY > 24;
+      nav.style.background = on ? 'rgba(246,247,249,.82)' : 'transparent';
+      nav.style.backdropFilter = on ? 'blur(18px) saturate(160%)' : 'none';
+      nav.style.webkitBackdropFilter = on ? 'blur(18px) saturate(160%)' : 'none';
+      nav.style.boxShadow = on ? '0 1px 0 rgba(20,22,28,.06)' : 'none';
+    };
+    apply();
+    addEventListener('scroll', apply, { passive: true });
+  }
+  const burger = $('burger-btn');
+  const menu = $('mobile-menu-wrap');
+  if (burger && menu) {
+    let open = false;
+    const setMenu = (v) => { open = v; menu.style.maxHeight = v ? '340px' : '0px'; };
+    burger.addEventListener('click', () => setMenu(!open));
+    document.querySelectorAll('[data-close-menu]').forEach((a) =>
+      a.addEventListener('click', () => setMenu(false)));
+  }
+}
+
+function initFades() {
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const els = document.querySelectorAll('.fade:not(.vis)');
+  if (reduced) { els.forEach((el) => el.classList.add('vis')); return; }
+  const obs = new IntersectionObserver((entries) => {
+    entries.forEach((e) => { if (e.isIntersecting) { e.target.classList.add('vis'); obs.unobserve(e.target); } });
+  }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+  els.forEach((el) => obs.observe(el));
+}
+
+function initProjectHover() {
+  document.querySelectorAll('.proj').forEach((card) => {
+    card.addEventListener('mouseenter', () => {
+      card.style.transform = 'translateY(-6px)';
+      card.style.boxShadow = '0 30px 50px -34px rgba(37,99,235,.5)';
+      card.style.borderColor = '#c9d6fb';
+    });
+    card.addEventListener('mouseleave', () => {
+      card.style.transform = 'none';
+      card.style.boxShadow = '0 0 0 rgba(0,0,0,0)';
+      card.style.borderColor = '#e7e9ee';
+    });
+  });
+}
+
+/* ---------- Content from /api/site ---------- */
+
+// skill highlight → design's three-tier pill styles
+const PILL = {
+  main: 'display:inline-flex;align-items:center;gap:8px;padding:9px 14px;border-radius:11px;background:#2563eb;color:#fff;font-weight:500;font-size:14px',
+  strong: 'display:inline-flex;align-items:center;gap:8px;padding:9px 14px;border-radius:11px;background:rgba(37,99,235,.1);color:#1d4ed8;font-weight:500;font-size:14px',
+  work: 'display:inline-flex;align-items:center;gap:8px;padding:9px 14px;border-radius:11px;background:#f0f2f6;color:#4b515c;font-weight:500;font-size:14px',
 };
+const TIER_TAG = "font-family:'JetBrains Mono',monospace;font-size:10px;opacity:.8";
 
-function setText(id, value) {
-  const el = document.getElementById(id);
-  if (el && value != null && value !== '') el.textContent = value;
-}
-
-// ---------- Render site data ----------
-
-function socialCard(icon, label, handle, url) {
-  return `<a href="${esc(url)}" class="gc social-card" ${url.startsWith('http') ? 'target="_blank" rel="noopener"' : ''}>
-    <span class="social-card__icon">${icon}</span>
-    <span>
-      <div class="social-card__label">${esc(label)}</div>
-      <div class="social-card__handle">${esc(handle)}</div>
-    </span>
-  </a>`;
-}
-
-function render(data) {
+function renderSite(data) {
   const p = data.profile || {};
 
-  setText('hero-last', (p.last_name || '').toUpperCase());
+  // hero
   setText('hero-first', p.first_name);
-  const cursor = document.querySelector('.hero__cursor');
-  const firstEl = document.getElementById('hero-first');
-  if (firstEl && cursor) firstEl.appendChild(cursor);
-  setText('hero-role', p.role);
-  setText('hero-loc', p.location);
-  setText('status-city', (p.location || '').split('/')[0].trim());
-  setText('footer-copy', `© 2026 ${p.first_name || ''} ${p.last_name || ''}`.trim());
-
-  const favImg = document.getElementById('fav-img');
-  const heroImgSrc = p.photo || '/uploads/photo.jpg';
-  if (favImg) { favImg.src = heroImgSrc; favImg.onerror = () => { favImg.style.opacity = '0'; }; }
-
+  setText('hero-last', p.last_name);
+  if (p.tagline) setText('hero-kicker', '// ' + p.tagline.toLowerCase() + ' · ' + (p.location || '').split('/')[0].trim());
+  if (p.about_ru) setText('hero-desc', p.about_ru.split('.').slice(0, 2).join('.') + '.');
   if (p.telegram) {
-    const tg = document.getElementById('bento-tg');
+    const tg = $('hero-tg');
     if (tg) { tg.href = 'https://t.me/' + p.telegram; tg.textContent = '✈ @' + p.telegram; }
-    const fh = document.getElementById('footer-handle');
-    if (fh) { fh.href = 'https://t.me/' + p.telegram; fh.textContent = '@' + p.telegram; }
   }
-  if (p.resume) document.getElementById('resume-link').href = p.resume;
+  const photo = $('hero-photo');
+  if (photo && p.photo) { photo.src = p.photo; }
+
   document.title = `${p.first_name || ''} ${p.last_name || ''} — Разработчик`.trim();
 
-  setText('about-ru', p.about_ru);
-  setText('about-en', p.about_en);
-  setText('bento-desc', (p.about_ru || '').split('.')[0] + (p.about_ru ? '.' : ''));
+  // about overlay text
+  if (p.about_ru) setText('about-text', p.about_ru);
 
-  const facts = [];
-  if (p.location) facts.push({ label: 'ГОРОД', value: p.location.split('/')[0].trim() });
-  if (p.age) facts.push({ label: 'ВОЗРАСТ', value: p.age });
-  if (p.role) facts.push({ label: 'НАПРАВЛЕНИЕ', value: p.role });
-  facts.push({ label: 'ЯЗЫКИ', value: 'RU & EN' });
-  document.getElementById('facts-list').innerHTML = facts.map((f) => `
-    <div class="facts__item">
-      <div class="facts__item-label">${esc(f.label)}</div>
-      <div class="facts__item-value">${esc(f.value)}</div>
-    </div>`).join('');
+  // rubik / interests block copy (editable in admin)
+  setText('rubik-label', p.rubik_label);
+  setText('rubik-title', p.rubik_title);
+  setText('rubik-text', p.rubik_text);
 
-  // Interests
-  const interestIcons = ['♩', '◉', '⚙', '🌍'];
-  document.getElementById('interests-grid').innerHTML = (data.interests || [])
-    .map((it, i) => `<div class="gc interest-card" data-fade>
-      <div class="interest-card__icon">${esc(it.symbol || interestIcons[i % interestIcons.length])}</div>
-      <div class="interest-card__name">${esc(it.title)}</div>
-      <div class="interest-card__desc">${esc(it.description || it.subtitle || '')}</div>
-    </div>`).join('');
+  // skills grid — one card per group
+  const skills = data.skills || [];
+  if (skills.length && $('skills-grid')) {
+    $('skills-grid').innerHTML = skills.map((g) => {
+      const pills = (g.skills || []).map((s, i) => {
+        // level: main | strong | work. Empty falls back to legacy highlight logic
+        // (first highlighted in group = main, other highlighted = strong).
+        let level = s.level;
+        if (!level) level = s.highlight ? (i === 0 ? 'main' : 'strong') : 'work';
+        const style = level === 'main' ? PILL.main : level === 'strong' ? PILL.strong : PILL.work;
+        const label = level === 'main' ? 'основной' : level === 'strong' ? 'уверенно' : '';
+        const tag = label ? `<span style="${TIER_TAG}">${label}</span>` : '';
+        return `<span style="${style}">${esc(s.name)}${tag}</span>`;
+      }).join('');
+      return `<div class="fade vis" style="background:#fff;border:1px solid #e7e9ee;border-radius:18px;padding:24px">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#9aa0ab;margin-bottom:18px">// ${esc(g.title)}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:9px">${pills}</div>
+      </div>`;
+    }).join('');
+  }
 
-  // Skills
-  document.getElementById('skills-grid').innerHTML = (data.skills || [])
-    .map((g) => `<div class="gc skill-card" data-fade>
-      <div class="skill-card__cat">${esc(g.title)}</div>
-      <div class="skill-card__tags">${(g.skills || []).map((s) =>
-        `<span class="skill-tag${s.highlight ? ' skill-tag--hl' : ''}">${esc(s.name)}</span>`).join('')}</div>
-    </div>`).join('');
+  // interests list
+  const interests = data.interests || [];
+  if (interests.length && $('interests-list')) {
+    const icons = ['♪', '❦', '◉', '⚙'];
+    $('interests-list').innerHTML = interests.map((it, i) => `
+      <div style="display:flex;gap:16px;align-items:flex-start;background:#fff;border:1px solid #e7e9ee;border-radius:16px;padding:18px 20px">
+        <span style="font-size:26px;color:#2563eb;line-height:1">${esc(it.symbol || icons[i % icons.length])}</span>
+        <div><h3 style="font-size:18px;font-weight:600;margin-bottom:3px">${esc(it.title)}</h3>
+        <p style="color:#626873;line-height:1.5;font-size:15px">${esc(it.description || it.subtitle || '')}</p></div>
+      </div>`).join('');
+  }
 
-  // Core stack mini-bars (top-highlighted skills across groups)
-  const highlighted = (data.skills || []).flatMap((g) => (g.skills || []).filter((s) => s.highlight));
-  const stackPct = [92, 85, 80, 76];
-  document.getElementById('stack-bars').innerHTML = highlighted.slice(0, 4).map((s, i) => `
-    <div class="stack-bar">
-      <div class="stack-bar__row">
-        <span class="stack-bar__name">${esc(s.name)}</span>
-        <span class="stack-bar__pct">${stackPct[i] || 70}%</span>
-      </div>
-      <div class="stack-bar__track"><div class="stack-bar__fill" style="width:${stackPct[i] || 70}%"></div></div>
-    </div>`).join('');
+  // education card — first entry (design has a single card)
+  const edu = (data.education || [])[0];
+  if (edu && $('edu-card')) {
+    $('edu-card').innerHTML = `
+      <div style="display:flex;gap:26px;align-items:flex-start">
+        <img src="/assets/hse-perm.png" alt="НИУ ВШЭ — Пермь" width="96" height="96"
+          style="flex:0 0 96px;width:96px;height:96px;object-fit:contain">
+        <div style="flex:1 1 auto;min-width:0">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:14px;color:#2563eb;white-space:nowrap">${esc(edu.period)}</div>
+          <h3 style="font-size:22px;font-weight:600;margin:6px 0">${esc(edu.institution)}</h3>
+          <div style="color:#626873;margin-bottom:12px">${esc(edu.major)}</div>
+          ${edu.description ? `<p style="color:#626873;line-height:1.6">${esc(edu.description)}</p>` : ''}
+        </div>
+      </div>`;
+  }
 
-  // Activity bars (decorative, seeded from project count)
-  const projCount = (data.projects || []).length;
-  setText('proj-count', projCount + '+');
-  const bars = [28, 42, 55, 38, 68, 60, 80, 74, 88, 82, 94, 86];
-  document.getElementById('activity-bars').innerHTML = bars.map((h) =>
-    `<div class="card-activity__bar" style="height:${h}%;opacity:${(0.28 + (h / 100) * 0.72).toFixed(2)}"></div>`).join('');
+  // projects grid
+  const projects = data.projects || [];
+  if (projects.length && $('projects-grid')) {
+    $('projects-grid').innerHTML = projects.map((pr, i) => {
+      const stackParts = (pr.stack || '').split('·').map((s) => s.trim()).filter(Boolean);
+      const tag = stackParts.slice(0, 2).join(' · ') || 'Project';
+      const href = pr.url ? esc(pr.url) : '#';
+      return `<a href="${href}" ${pr.url ? 'target="_blank" rel="noopener"' : ''} class="proj" style="display:block;background:#fff;border:1px solid #e7e9ee;border-radius:20px;padding:28px;transition:transform .35s cubic-bezier(.22,.61,.36,1),box-shadow .35s;box-shadow:0 0 0 rgba(0,0,0,0)">
+        <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:60px">
+          <span style="font-family:'JetBrains Mono',monospace;font-size:12px;padding:6px 11px;border-radius:8px;background:rgba(37,99,235,.09);color:#2563eb">${esc(tag)}</span>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#c3c8d1">${String(i + 1).padStart(2, '0')}</span>
+        </div>
+        <h3 style="font-size:24px;font-weight:600;margin-bottom:8px">${esc(pr.title)}</h3>
+        ${pr.metrics ? `<div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#2563eb;margin-bottom:10px">${esc(pr.metrics)}</div>` : ''}
+        <p style="color:#626873;line-height:1.55;margin-bottom:18px">${esc(pr.description)}</p>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;font-family:'JetBrains Mono',monospace;font-size:12px;color:#9aa0ab">
+          ${stackParts.map((s) => `<span>${esc(s)}</span>`).join('<span>·</span>')}
+        </div>
+      </a>`;
+    }).join('');
+    initProjectHover();
+  }
 
-  // Education
-  document.getElementById('edu-list').innerHTML = (data.education || [])
-    .map((e) => `<div class="gc edu-card" data-fade>
-      <div class="edu-card__period">${esc(e.period)}</div>
-      <div class="edu-card__inst">${esc(e.institution)}</div>
-      <div class="edu-card__major">${esc(e.major)}</div>
-      ${e.description ? `<p class="edu-card__desc">${esc(e.description)}</p>` : ''}
-    </div>`).join('');
+  // contacts
+  if (p.telegram) {
+    const a = $('contact-tg'); if (a) a.href = 'https://t.me/' + p.telegram;
+    setText('contact-tg-h', '@' + p.telegram);
+  }
+  if (p.email) {
+    const a = $('contact-email'); if (a) a.href = 'mailto:' + p.email;
+    setText('contact-email-h', p.email);
+  }
+  if (p.resume) { const r = $('resume-link'); if (r) r.href = p.resume; }
 
-  // Projects
-  document.getElementById('projects-grid').innerHTML = (data.projects || [])
-    .map((pr, i) => `<div class="gc project-card" data-fade>
-      <div class="project-card__num">${String(i + 1).padStart(2, '0')}</div>
-      <div class="project-card__tag">${esc((pr.stack || '').split('·')[0].trim())}</div>
-      <div class="project-card__title">${esc(pr.title)}</div>
-      ${pr.metrics ? `<div class="project-card__metrics">${esc(pr.metrics)}</div>` : ''}
-      <p class="project-card__desc">${esc(pr.description)}</p>
-      <div class="project-card__stack">${(pr.stack || '').split('·').map((s) => `<span>${esc(s.trim())}</span>`).join('')}</div>
-      ${pr.url ? `<a class="project-card__link" href="${esc(pr.url)}" target="_blank" rel="noopener">GitHub →</a>` : ''}
-    </div>`).join('');
-
-  // Contacts / socials
-  const cards = [];
-  if (p.telegram) cards.push(socialCard(ICONS.telegram, 'Telegram', '@' + p.telegram, 'https://t.me/' + p.telegram));
-  if (p.github) cards.push(socialCard(ICONS.github, 'GitHub', p.github, 'https://github.com/' + p.github));
-  if (p.email) cards.push(socialCard(ICONS.email, 'Email', p.email, 'mailto:' + p.email));
-  if (p.phone) cards.push(socialCard(ICONS.phone, 'Телефон', p.phone, 'tel:' + p.phone.replace(/[^+\d]/g, '')));
-  document.getElementById('socials-grid').innerHTML = cards.join('');
-
-  observeFades();
-  document.getElementById('app').setAttribute('aria-busy', 'false');
+  initFades();
 }
 
-function observeFades() {
-  const obs = new IntersectionObserver((entries) => {
-    entries.forEach((e) => {
-      if (e.isIntersecting) { e.target.classList.add('is-visible'); obs.unobserve(e.target); }
-    });
-  }, { threshold: 0.08, rootMargin: '0px 0px -48px 0px' });
-  document.querySelectorAll('[data-fade]:not(.is-visible)').forEach((el) => obs.observe(el));
-}
+/* ---------- Contact form ---------- */
 
 function initForm() {
-  const form = document.getElementById('contact-form');
-  const status = document.getElementById('cform-status');
+  const form = $('contact-form');
+  if (!form) return;
+  const status = $('cform-status');
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const btn = form.querySelector('.cform__btn');
+    const btn = form.querySelector('button[type="submit"]');
     const fd = new FormData(form);
     const payload = {
       name: (fd.get('name') || '').trim(),
       email: (fd.get('email') || '').trim(),
       message: (fd.get('message') || '').trim(),
     };
-    status.className = 'cform__status';
-    status.textContent = 'Отправка…';
-    btn.disabled = true;
+    if (status) { status.style.color = '#626873'; status.textContent = 'Отправка…'; }
+    if (btn) btn.disabled = true;
     try {
       const res = await fetch('/api/contact', {
         method: 'POST',
@@ -172,622 +212,506 @@ function initForm() {
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
-        status.textContent = 'Спасибо! Сообщение отправлено.';
-        status.className = 'cform__status cform__status--ok';
+        if (status) { status.style.color = '#22a55b'; status.textContent = 'Спасибо! Сообщение отправлено.'; }
         form.reset();
-      } else {
-        status.textContent = data.error || 'Не удалось отправить.';
-        status.className = 'cform__status cform__status--err';
+      } else if (status) {
+        status.style.color = '#e0245e'; status.textContent = data.error || 'Не удалось отправить.';
       }
     } catch (_) {
-      status.textContent = 'Ошибка сети. Попробуйте позже.';
-      status.className = 'cform__status cform__status--err';
+      if (status) { status.style.color = '#e0245e'; status.textContent = 'Ошибка сети. Попробуйте позже.'; }
     } finally {
-      btn.disabled = false;
+      if (btn) btn.disabled = false;
     }
   });
 }
 
-// ---------- Blog ----------
+/* ---------- Music (Spotify) ---------- */
 
-const blogState = { offset: 0, limit: 10, loading: false };
-
-function timeAgo(iso) {
-  if (!iso) return '';
-  return new Date(iso).toLocaleString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+const MONTHS = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+function monthLabel(m) {
+  if (!m) return '// топ за месяц';
+  const [y, mm] = m.split('-').map(Number);
+  return `// топ за ${MONTHS[mm - 1]} ${y}`;
+}
+function fmtMs(ms) {
+  const t = Math.max(0, Math.floor((ms || 0) / 1000));
+  return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
 }
 
-function postCard(post) {
-  const photos = post.photos || [];
-  const photosHtml = photos.length ? `<div class="post-card__photos post-card__photos--n${Math.min(photos.length, 4)}">${
-    photos.map((ph, i) => `<button type="button" class="post-card__photo" data-post="${post.id}" data-index="${i}">
-      <img src="${esc(ph.url)}" loading="lazy" alt="">
-    </button>`).join('')
-  }</div>` : '';
+const EQ_BARS = Array.from({ length: 7 }, (_, i) =>
+  `<span style="flex:1;background:#2563eb;border-radius:3px;height:100%;transform-origin:bottom;animation:eq .9s ease-in-out infinite;animation-delay:${(i * 0.15).toFixed(2)}s"></span>`).join('');
 
-  const reactionsHtml = (post.reactions || []).map((rc) => `
-    <button type="button" class="reaction${rc.reacted ? ' reaction--active' : ''}" data-post="${post.id}" data-emoji="${esc(rc.emoji)}">
-      <span>${rc.emoji}</span>${rc.count > 0 ? `<span class="reaction__count">${rc.count}</span>` : ''}
-    </button>`).join('');
-
-  return `<article class="gc post-card" data-fade data-post-id="${post.id}">
-    <div class="post-card__meta">
-      <span class="card-blog__tag">Post</span>
-      <span class="post-card__meta-date">${esc(timeAgo(post.created_at))}</span>
-    </div>
-    <h3 class="post-card__title">${esc(post.title)}</h3>
-    <p class="post-card__body">${esc(post.body)}</p>
-    ${photosHtml}
-    <div class="reactions">${reactionsHtml}</div>
-  </article>`;
-}
-
-async function loadBlog(reset) {
-  if (blogState.loading) return;
-  if (reset) blogState.offset = 0;
-  blogState.loading = true;
-  const feed = document.getElementById('blog-feed');
-  const moreBtn = document.getElementById('blog-more');
+async function loadNow() {
+  const el = $('music-now');
+  if (!el) return;
   try {
-    const res = await fetch(`/api/blog/posts?limit=${blogState.limit}&offset=${blogState.offset}`);
-    const data = await res.json();
-    const posts = data.posts || [];
-    const html = posts.map(postCard).join('');
-    feed.innerHTML = reset ? html : feed.innerHTML + html;
-    blogState.offset += posts.length;
-    moreBtn.classList.toggle('hidden', !data.has_more);
-    if (!feed.innerHTML) feed.innerHTML = '<p class="blog-empty">Записей пока нет.</p>';
-    bindPostInteractions(feed);
-    observeFades();
-
-    if (reset && posts.length) {
-      const latest = posts[0];
-      setText('blog-teaser-title', latest.title);
-      setText('blog-teaser-date', timeAgo(latest.created_at));
-    }
-  } catch (err) {
-    console.error('Failed to load blog:', err);
-    if (reset) feed.innerHTML = '<p class="blog-empty">Не удалось загрузить блог.</p>';
-  } finally {
-    blogState.loading = false;
-  }
-}
-
-function bindPostInteractions(scope) {
-  scope.querySelectorAll('.post-card__photo').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const article = btn.closest('.post-card');
-      const photos = Array.from(article.querySelectorAll('.post-card__photo img')).map((img) => img.src);
-      openLightbox(photos, Number(btn.dataset.index));
-    });
-  });
-  scope.querySelectorAll('.reaction').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      if (btn.disabled) return;
-      btn.disabled = true;
-      try {
-        const res = await fetch(`/api/blog/posts/${btn.dataset.post}/react`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ emoji: btn.dataset.emoji }),
-        });
-        const data = await res.json();
-        if (res.ok) {
-          const article = btn.closest('.post-card');
-          const reactionsEl = article.querySelector('.reactions');
-          reactionsEl.innerHTML = (data.reactions || []).map((rc) => `
-            <button type="button" class="reaction${rc.reacted ? ' reaction--active' : ''}" data-post="${article.dataset.postId}" data-emoji="${esc(rc.emoji)}">
-              <span>${rc.emoji}</span>${rc.count > 0 ? `<span class="reaction__count">${rc.count}</span>` : ''}
-            </button>`).join('');
-          bindPostInteractions(reactionsEl);
-        }
-      } catch (_) { /* ignore, button re-enables below */ }
-      finally { btn.disabled = false; }
-    });
-  });
-}
-
-// ---------- Lightbox ----------
-
-const lightboxState = { photos: [], index: 0 };
-
-function openLightbox(photos, index) {
-  lightboxState.photos = photos;
-  lightboxState.index = index;
-  updateLightbox();
-  document.getElementById('lightbox').classList.remove('hidden');
-  document.body.style.overflow = 'hidden';
-}
-function closeLightbox() {
-  document.getElementById('lightbox').classList.add('hidden');
-  document.body.style.overflow = '';
-}
-function updateLightbox() {
-  const { photos, index } = lightboxState;
-  document.getElementById('lightbox-img').src = photos[index];
-  document.getElementById('lightbox-counter').textContent = `${index + 1} / ${photos.length}`;
-}
-function lightboxStep(delta) {
-  const n = lightboxState.photos.length;
-  lightboxState.index = (lightboxState.index + delta + n) % n;
-  updateLightbox();
-}
-
-function initLightbox() {
-  document.getElementById('lightbox-close').addEventListener('click', closeLightbox);
-  document.getElementById('lightbox-prev').addEventListener('click', () => lightboxStep(-1));
-  document.getElementById('lightbox-next').addEventListener('click', () => lightboxStep(1));
-  const box = document.getElementById('lightbox');
-  box.addEventListener('click', (e) => { if (e.target === box) closeLightbox(); });
-  document.addEventListener('keydown', (e) => {
-    if (box.classList.contains('hidden')) return;
-    if (e.key === 'Escape') closeLightbox();
-    if (e.key === 'ArrowLeft') lightboxStep(-1);
-    if (e.key === 'ArrowRight') lightboxStep(1);
-  });
-  let touchStartX = null;
-  box.addEventListener('touchstart', (e) => { touchStartX = e.changedTouches[0].clientX; }, { passive: true });
-  box.addEventListener('touchend', (e) => {
-    if (touchStartX == null) return;
-    const dx = e.changedTouches[0].clientX - touchStartX;
-    if (Math.abs(dx) > 40) lightboxStep(dx < 0 ? 1 : -1);
-    touchStartX = null;
-  }, { passive: true });
-}
-
-// ---------- Music ----------
-
-const MONTH_NAMES = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
-
-function monthLabel(monthStr) {
-  if (!monthStr) return '// top tracks';
-  const [y, m] = monthStr.split('-').map(Number);
-  return `// топ за ${MONTH_NAMES[m - 1]} ${y}`;
-}
-
-async function loadNowPlaying() {
-  const el = document.getElementById('music-now');
-  const bento = document.getElementById('bento-now');
-  try {
-    const res = await fetch('/api/spotify/now');
-    const np = await res.json();
+    const np = await (await fetch('/api/spotify/now')).json();
+    const head = `<div style="display:flex;align-items:center;gap:9px;font-family:'JetBrains Mono',monospace;font-size:12px;color:#9fb4ff;margin-bottom:24px"><span style="width:8px;height:8px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 4px rgba(34,197,94,.25)"></span>now playing · spotify</div>`;
     if (!np.is_playing) {
-      el.innerHTML = `<div class="music-now-card__label"><span class="music-now-card__dot"></span>now playing · spotify</div>
-        <div class="music-now-card--empty">
-          <div class="music-now-card__ph">♪</div>
-          <div>Сейчас ничего не играет</div>
-        </div>`;
-      if (bento) bento.innerHTML = `<div class="card-now__label"><span class="card-now__dot"></span>now playing</div><div class="card-now-content card-now--empty">Сейчас тихо</div>`;
+      el.innerHTML = head + `<div style="display:flex;gap:16px;align-items:center;margin-bottom:22px">
+        <div style="width:72px;height:72px;border-radius:14px;background:linear-gradient(135deg,#2563eb,#4f46e5);display:grid;place-items:center;font-size:26px;flex:none">♫</div>
+        <div style="min-width:0"><div style="font-size:18px;font-weight:600;margin-bottom:4px">Сейчас тихо</div><div style="color:#a7adba">ничего не играет</div></div></div>`;
       return;
     }
-    el.innerHTML = `
-      <div class="music-now-card__label"><span class="music-now-card__dot"></span>now playing · spotify</div>
-      <div class="music-now-card__row">
-        <div class="music-now-card__art">${np.image_url ? `<img src="${esc(np.image_url)}" alt="">` : '♫'}</div>
-        <div>
-          <div class="music-now-card__track">${esc(np.track_name)}</div>
-          <div class="music-now-card__artist">${esc(np.artist_name)}</div>
-        </div>
+    const pct = np.duration_ms ? Math.min(100, (np.progress_ms / np.duration_ms) * 100) : 0;
+    el.innerHTML = head + `
+      <div style="display:flex;gap:16px;align-items:center;margin-bottom:22px">
+        <div style="width:72px;height:72px;border-radius:14px;overflow:hidden;background:linear-gradient(135deg,#2563eb,#4f46e5);display:grid;place-items:center;font-size:26px;flex:none">${np.image_url ? `<img src="${esc(np.image_url)}" alt="" style="width:100%;height:100%;object-fit:cover">` : '♫'}</div>
+        <div style="min-width:0"><div style="font-size:18px;font-weight:600;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(np.track_name)}</div><div style="color:#a7adba">${esc(np.artist_name)}</div></div>
       </div>
-      <div class="eq"><span></span><span></span><span></span><span></span><span></span><span></span></div>
-      ${np.track_url ? `<a class="music-now-card__link" href="${esc(np.track_url)}" target="_blank" rel="noopener">Слушать →</a>` : ''}
-    `;
-    if (bento) {
-      bento.innerHTML = `
-        <div class="card-now__label"><span class="card-now__dot"></span>now playing</div>
-        <div class="card-now__row">
-          <div class="card-now__art">${np.image_url ? `<img src="${esc(np.image_url)}" alt="">` : '♫'}</div>
-          <div style="min-width:0">
-            <div class="card-now__track">${esc(np.track_name)}</div>
-            <div class="card-now__artist">${esc(np.artist_name)}</div>
-          </div>
-        </div>
-        <div class="eq"><span></span><span></span><span></span><span></span><span></span><span></span></div>`;
-    }
-  } catch (err) {
-    console.error('Failed to load now playing:', err);
-  }
+      <div style="height:5px;border-radius:999px;background:rgba(255,255,255,.14);overflow:hidden;margin-bottom:8px"><div style="width:${pct.toFixed(1)}%;height:100%;background:#2563eb"></div></div>
+      <div style="display:flex;justify-content:space-between;font-family:'JetBrains Mono',monospace;font-size:12px;color:#8f96a5;margin-bottom:22px"><span>${fmtMs(np.progress_ms)}</span><span>${fmtMs(np.duration_ms)}</span></div>
+      <div style="display:flex;align-items:flex-end;gap:4px;height:34px">${EQ_BARS}</div>
+      ${np.track_url ? `<a href="${esc(np.track_url)}" target="_blank" rel="noopener" style="display:inline-block;margin-top:18px;font-family:'JetBrains Mono',monospace;font-size:12px;color:#9fb4ff">Слушать →</a>` : ''}`;
+  } catch (_) { /* keep static */ }
 }
 
 async function loadTop() {
-  const el = document.getElementById('music-top');
+  const list = $('music-tracks');
+  if (!list) return;
   try {
-    const res = await fetch('/api/spotify/top');
-    const data = await res.json();
+    const data = await (await fetch('/api/spotify/top')).json();
     const tracks = data.tracks || [];
-    const artists = data.artists || [];
-    document.getElementById('music-top-label').textContent = monthLabel(data.month);
-    if (!tracks.length && !artists.length) {
-      el.innerHTML = '<p class="blog-empty">Пока нет данных за этот месяц.</p>';
-      return;
+    setText('music-top-label', monthLabel(data.month));
+    if (!tracks.length) return;
+    list.innerHTML = tracks.slice(0, 6).map((it, i) => {
+      const last = i === Math.min(tracks.length, 6) - 1;
+      return `<div style="display:flex;align-items:center;gap:14px;padding:12px 0;${last ? '' : 'border-bottom:1px solid #eceef2'}">
+        <span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#2563eb;width:20px">${i + 1}</span>
+        <span style="width:42px;height:42px;border-radius:9px;overflow:hidden;background:#eef1f8;display:grid;place-items:center;color:#2563eb;flex:none">${it.image_url ? `<img src="${esc(it.image_url)}" alt="" style="width:100%;height:100%;object-fit:cover">` : '♪'}</span>
+        <span style="flex:1;min-width:0"><span style="display:block;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(it.track_name)}</span><span style="display:block;color:#9aa0ab;font-size:13px">${esc(it.artist_name)}</span></span>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#9aa0ab">${it.play_count}×</span></div>`;
+    }).join('');
+  } catch (_) { /* keep static */ }
+}
+
+/* ============================================================
+   3D — retro workstation (FBX) + Rubik's cube
+   Ported from the design export; Rubik + fallback improved.
+   ============================================================ */
+
+class Retro3D {
+  constructor() {
+    this.reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    this.mouse = { x: 0.5, y: 0.5 };
+    this._cleanup = [];
+    addEventListener('mousemove', (e) => { this.mouse = { x: e.clientX / innerWidth, y: e.clientY / innerHeight }; }, { passive: true });
+  }
+
+  _roundedBox(T, w, h, d, r) {
+    r = Math.min(r, w / 2, h / 2, d / 2);
+    const sh = new T.Shape(), x = -w / 2, y = -h / 2;
+    sh.moveTo(x + r, y);
+    sh.lineTo(x + w - r, y); sh.quadraticCurveTo(x + w, y, x + w, y + r);
+    sh.lineTo(x + w, y + h - r); sh.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    sh.lineTo(x + r, y + h); sh.quadraticCurveTo(x, y + h, x, y + h - r);
+    sh.lineTo(x, y + r); sh.quadraticCurveTo(x, y, x + r, y);
+    const geo = new T.ExtrudeGeometry(sh, { depth: Math.max(0.001, d - 2 * r), bevelEnabled: true, bevelThickness: r, bevelSize: r, bevelSegments: 4, curveSegments: 10 });
+    geo.center();
+    return geo;
+  }
+
+  /* ---- Rubik: flush uniform cubies, flat vivid stickers ---- */
+  _makeRubik(T) {
+    const group = new T.Group();
+    const cubeRoot = new T.Group(); group.add(cubeRoot);
+    // standard Rubik colours
+    const cols = { r: 0xc41e3a, l: 0xff5800, u: 0xf5f5f5, d: 0xffd500, f: 0x0051ba, b: 0x009e60 };
+    const s = 0.64;              // cubie body size
+    const step = 0.66;          // spacing ≈ body + thin seam → flush, no gaps
+    const off = s / 2 + 0.012;  // sticker sits just proud of the face
+    const bodyGeo = new T.BoxGeometry(s, s, s);  // simple cube → tight, uniform, no bevel size drift
+    const bodyMat = new T.MeshStandardMaterial({ color: 0x101014, roughness: 0.5, metalness: 0.0 });
+    // thin flat sticker tile, identical size on every face
+    const st_face = s * 0.86, st_thick = 0.02;
+    const geoZ = new T.BoxGeometry(st_face, st_face, st_thick); // for ±Z faces
+    const geoX = new T.BoxGeometry(st_thick, st_face, st_face); // for ±X faces
+    const geoY = new T.BoxGeometry(st_face, st_thick, st_face); // for ±Y faces
+    const stickerMat = (c) => new T.MeshStandardMaterial({ color: c, roughness: 0.35, metalness: 0.0 });
+    const cubies = [];
+    for (let x = -1; x <= 1; x++) for (let y = -1; y <= 1; y++) for (let z = -1; z <= 1; z++) {
+      const c = new T.Group();
+      c.add(new T.Mesh(bodyGeo, bodyMat));
+      const add = (nx, ny, nz, col) => {
+        const geo = nx ? geoX : (ny ? geoY : geoZ);
+        const st = new T.Mesh(geo, stickerMat(col));
+        st.position.set(nx * off, ny * off, nz * off);
+        c.add(st);
+      };
+      if (x === 1) add(1, 0, 0, cols.r); if (x === -1) add(-1, 0, 0, cols.l);
+      if (y === 1) add(0, 1, 0, cols.u); if (y === -1) add(0, -1, 0, cols.d);
+      if (z === 1) add(0, 0, 1, cols.f); if (z === -1) add(0, 0, -1, cols.b);
+      c.position.set(x * step, y * step, z * step);
+      c.userData.home = c.position.clone();
+      cubeRoot.add(c); cubies.push(c);
     }
-    const trackList = tracks.map((it, i) => `
-      <div class="top-item">
-        <span class="top-item__rank">${i + 1}</span>
-        <span class="top-item__img">${it.image_url ? `<img src="${esc(it.image_url)}" alt="">` : '♪'}</span>
-        <span class="top-item__text">
-          <span class="top-item__name">${esc(it.track_name)}</span>
-          <span class="top-item__sub">${esc(it.artist_name)}</span>
-        </span>
-        <span class="top-item__count">${it.play_count}×</span>
-      </div>`).join('');
-    const artistList = artists.map((it, i) => `
-      <div class="top-item">
-        <span class="top-item__rank">${i + 1}</span>
-        <span class="top-item__img">${it.image_url ? `<img src="${esc(it.image_url)}" alt="">` : '☺'}</span>
-        <span class="top-item__text">
-          <span class="top-item__name">${esc(it.artist_name)}</span>
-        </span>
-        <span class="top-item__count">${it.play_count}×</span>
-      </div>`).join('');
-    el.innerHTML = `
-      <div class="top-col">
-        <div class="top-col__label">Треки</div>
-        ${trackList || '<p class="blog-empty">Нет данных.</p>'}
-      </div>
-      <div class="top-col">
-        <div class="top-col__label">Артисты</div>
-        ${artistList || '<p class="blog-empty">Нет данных.</p>'}
-      </div>`;
-  } catch (err) {
-    console.error('Failed to load top items:', err);
-  }
-}
+    group.scale.setScalar(0.92);
 
-function loadMusic() {
-  loadNowPlaying();
-  loadTop();
-  setInterval(loadNowPlaying, 30000);
-}
-
-// ---------- Theme + nav visuals ----------
-
-const THEME_VARS = {
-  dark: {
-    '--bg': '#070B18', '--bg2': '#0D1425', '--t1': '#E8F4FF', '--t2': '#7A9BB8', '--t3': '#3D5A75',
-    '--ac': '#22D3EE', '--ac2': '#818CF8', '--navbg': 'rgba(7,11,24,.9)',
-  },
-  light: {
-    '--bg': '#F0F6FF', '--bg2': '#E0EAFF', '--t1': '#0F172A', '--t2': '#475569', '--t3': '#94A3B8',
-    '--ac': '#2563EB', '--ac2': '#6366F1', '--navbg': 'rgba(240,246,255,.92)',
-  },
-};
-
-function applyTheme(theme) {
-  const root = document.documentElement;
-  Object.entries(THEME_VARS[theme]).forEach(([k, v]) => root.style.setProperty(k, v));
-  root.setAttribute('data-theme', theme);
-  try { localStorage.setItem('ms-theme', theme); } catch (_) { /* ignore */ }
-  const btn = document.getElementById('theme-toggle');
-  if (btn) btn.textContent = theme === 'dark' ? '☀' : '🌙';
-  setTimeout(initSparkline, 60);
-}
-
-function initThemeToggle() {
-  const saved = (typeof localStorage !== 'undefined' && localStorage.getItem('ms-theme')) || 'dark';
-  applyTheme(saved);
-  document.getElementById('theme-toggle').addEventListener('click', () => {
-    const cur = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
-    applyTheme(cur === 'dark' ? 'light' : 'dark');
-  });
-}
-
-function initMobileMenu() {
-  const btn = document.getElementById('menu-toggle');
-  const menu = document.getElementById('mobile-menu');
-  btn.addEventListener('click', () => menu.classList.toggle('hidden'));
-  menu.querySelectorAll('a').forEach((a) => a.addEventListener('click', () => menu.classList.add('hidden')));
-}
-
-// ---------- Scroll: nav glass, floating avatar, orb parallax ----------
-
-let avatarStart = null;
-let mouse = { x: 0, y: 0 };
-
-function computeAvatarStart() {
-  const rings = document.getElementById('hero-rings');
-  const size = 180;
-  if (rings) {
-    const r = rings.getBoundingClientRect();
-    avatarStart = { x: r.left + r.width / 2 - size / 2, y: r.top + r.height / 2 - size / 2 };
-  } else {
-    avatarStart = { x: window.innerWidth / 2 - 90, y: 320 };
-  }
-}
-
-function refreshAvatarPosition() {
-  avatarStart = null;
-  if (window.scrollY < 4) setAvatarStart();
-  else handleScroll();
-}
-
-function handleScroll() {
-  const sy = window.scrollY;
-  const H = window.innerHeight;
-  const W = window.innerWidth;
-
-  const nav = document.getElementById('nav');
-  if (nav) {
-    const on = sy > 40;
-    nav.style.background = on ? 'var(--navbg)' : 'transparent';
-    nav.style.backdropFilter = on ? 'blur(26px) saturate(160%)' : 'none';
-    nav.style.webkitBackdropFilter = on ? 'blur(26px) saturate(160%)' : 'none';
-    nav.style.boxShadow = on ? '0 1px 0 rgba(255,255,255,.06)' : 'none';
-  }
-
-  const fav = document.getElementById('fav');
-  if (fav && fav.classList.contains('ready')) {
-    if (!avatarStart) computeAvatarStart();
-    const isMobile = W <= 720;
-    const p = Math.min(Math.max(sy / (H * (isMobile ? 0.55 : 0.38)), 0), 1);
-    const ease = p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
-    const sx = avatarStart ? avatarStart.x : W / 2 - 90;
-    const sy0 = avatarStart ? avatarStart.y : 320;
-    const fb = document.getElementById('fav-fb');
-
-    if (isMobile) {
-      // mobile navbar too small, just fade out instead of flying there
-      fav.style.left = sx + 'px';
-      fav.style.top = sy0 + 'px';
-      fav.style.width = '180px';
-      fav.style.height = '180px';
-      fav.style.transform = 'none';
-      fav.style.opacity = (1 - ease).toFixed(3);
-      if (fb) fb.style.fontSize = '28px';
-    } else {
-      const ex = W - 94, ey = 13;
-      const ss = 180, es = 38;
-      const cx = sx + (ex - sx) * ease;
-      const cy = sy0 + (ey - sy0) * ease;
-      const cs = ss + (es - ss) * ease;
-      fav.style.left = cx + 'px';
-      fav.style.top = cy + 'px';
-      fav.style.width = cs + 'px';
-      fav.style.height = cs + 'px';
-      fav.style.transform = 'none';
-      fav.style.opacity = '1';
-      if (fb) fb.style.fontSize = Math.max(9, 28 * (1 - ease)) + 'px';
-    }
-  }
-
-  const orb = document.getElementById('bg-orb');
-  if (orb) {
-    orb.style.top = (48 + sy * 0.04) + '%';
-    orb.style.opacity = Math.max(0, 1 - sy / (H * 1.6)).toFixed(3);
-  }
-}
-
-function setAvatarStart() {
-  computeAvatarStart();
-  const fav = document.getElementById('fav');
-  if (!fav || !avatarStart) return;
-  fav.style.left = avatarStart.x + 'px';
-  fav.style.top = avatarStart.y + 'px';
-  fav.style.width = '180px';
-  fav.style.height = '180px';
-  fav.style.transform = 'none';
-}
-
-// hero has a float-in animation that moves the rings, so hide avatar
-// until it's done or it looks glitchy
-function revealAvatarWhenStable() {
-  const fav = document.getElementById('fav');
-  const heroInner = document.querySelector('.hero__inner');
-  if (!fav) return;
-  const finish = () => {
-    avatarStart = null;
-    setAvatarStart();
-    if (window.scrollY > 4) handleScroll();
-    requestAnimationFrame(() => fav.classList.add('ready'));
-  };
-  if (heroInner) {
-    heroInner.addEventListener('animationend', finish, { once: true });
-    // fallback in case animation gets skipped somehow
-    setTimeout(finish, 950);
-  } else {
-    finish();
-  }
-  if (document.fonts && document.fonts.ready) {
-    document.fonts.ready.then(() => refreshAvatarPosition());
-  }
-}
-
-// ---------- Canvas background (stars + terrain) ----------
-
-let canvasRaf = null;
-let canvasT = 0;
-
-function initCanvas() {
-  const cv = document.getElementById('bg-canvas');
-  if (!cv) return;
-  const ctx = cv.getContext('2d');
-  let W = 0, H = 0;
-
-  const resize = () => { W = cv.width = window.innerWidth; H = cv.height = window.innerHeight; };
-  resize();
-  let rzT;
-  window.addEventListener('resize', () => { clearTimeout(rzT); rzT = setTimeout(() => { resize(); initSparkline(); }, 120); });
-
-  const STARS = Array.from({ length: 88 }, () => ({
-    x: Math.random(), y: Math.random(), r: Math.random() * 1.7 + 0.28, a: Math.random() * 0.55 + 0.1,
-    vx: (Math.random() - 0.5) * 0.00016, vy: (Math.random() - 0.5) * 0.00016, depth: Math.random(),
-  }));
-
-  const C = 30, R = 14;
-  const vtx = (xi, yi, t) => {
-    const nx = xi / (C - 1), ny = yi / (R - 1);
-    const h = (
-      Math.sin(nx * Math.PI * 3.2 + t * 0.65) * Math.cos(ny * Math.PI * 2.3 - t * 0.48) * 0.72 +
-      Math.sin(nx * Math.PI * 6.8 - t * 1.05) * Math.sin(ny * Math.PI * 4.1 + t * 0.75) * 0.38 +
-      Math.sin(nx * Math.PI * 12 + t * 0.38) * Math.cos(ny * Math.PI * 7.5 - t * 1.2) * 0.18
-    );
-    const cx = nx - 0.5, cy = ny - 0.5;
-    const peak = Math.max(0, 1 - Math.sqrt(cx * cx * 2.8 + cy * cy * 5.5)) * 0.42;
-    const fh = h * (0.38 + peak);
-    return {
-      x: W * 0.5 + (nx - 0.5) * W * 1.3,
-      y: H * 0.73 + (ny - 0.5) * H * 0.28 * 0.44 - fh * H * 0.31,
-      h: fh,
+    const axes = { x: new T.Vector3(1, 0, 0), y: new T.Vector3(0, 1, 0), z: new T.Vector3(0, 0, 1) };
+    const easeInOut = (t) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    const easeOut = (t) => 1 - Math.pow(1 - t, 3);
+    let phase = 'wait', timer = 0.5, turnsLeft = 12, pivot = null, mv = null, angle = 0, target = 0;
+    let tw = null, twT = 0, twDur = 1;
+    const speed = Math.PI / 2 / 0.3;
+    const pick = () => ({ ax: ['x', 'y', 'z'][Math.floor(Math.random() * 3)], layer: [-1, 0, 1][Math.floor(Math.random() * 3)], dir: Math.random() < 0.5 ? 1 : -1 });
+    const startMove = () => {
+      mv = pick(); pivot = new T.Group(); cubeRoot.add(pivot);
+      cubies.forEach((c) => { if (Math.round(c.position[mv.ax] / step) === mv.layer) pivot.attach(c); });
+      angle = 0; target = mv.dir * Math.PI / 2;
     };
-  };
+    const endMove = () => {
+      pivot.setRotationFromAxisAngle(axes[mv.ax], target); pivot.updateMatrixWorld(true);
+      [...pivot.children].forEach((c) => cubeRoot.attach(c));
+      cubeRoot.remove(pivot); pivot = null;
+      cubies.forEach((c) => c.position.set(Math.round(c.position.x / step) * step, Math.round(c.position.y / step) * step, Math.round(c.position.z / step) * step));
+    };
+    const beginExplode = () => {
+      tw = cubies.map((c) => {
+        const p0 = c.position.clone(), q0 = c.quaternion.clone();
+        let dir = p0.clone(); if (dir.lengthSq() < 1e-3) dir.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5);
+        dir.normalize();
+        const p1 = p0.clone().addScaledVector(dir, 1.1).multiplyScalar(1.06);
+        const eq = new T.Quaternion().setFromEuler(new T.Euler((Math.random() - 0.5) * 2.4, (Math.random() - 0.5) * 2.4, (Math.random() - 0.5) * 2.4));
+        return { c, p0, q0, p1, q1: q0.clone().multiply(eq) };
+      });
+      twT = 0; twDur = 0.75; phase = 'explode';
+    };
+    const beginGather = () => {
+      tw = cubies.map((c) => ({ c, p0: c.position.clone(), q0: c.quaternion.clone(), p1: c.userData.home.clone(), q1: new T.Quaternion() }));
+      twT = 0; twDur = 1.0; phase = 'gather';
+    };
+    const applyTween = (k) => { for (const e of tw) { e.c.position.lerpVectors(e.p0, e.p1, k); e.c.quaternion.copy(e.q0).slerp(e.q1, k); } };
+    const update = (dt) => {
+      if (phase === 'wait') { timer -= dt; if (timer <= 0) { if (turnsLeft > 0) { startMove(); phase = 'turn'; } else beginExplode(); } }
+      else if (phase === 'turn') { angle += Math.sign(target) * speed * dt; if (Math.abs(angle) >= Math.abs(target)) { endMove(); turnsLeft--; phase = 'wait'; timer = 0.12 + Math.random() * 0.28; } else pivot.setRotationFromAxisAngle(axes[mv.ax], angle); }
+      else if (phase === 'explode') { twT += dt; const e = Math.min(1, twT / twDur); applyTween(easeOut(e)); if (e >= 1) { phase = 'hold'; timer = 0.45; } }
+      else if (phase === 'hold') { timer -= dt; if (timer <= 0) beginGather(); }
+      else if (phase === 'gather') { twT += dt; const e = Math.min(1, twT / twDur); applyTween(easeInOut(e)); if (e >= 1) { cubies.forEach((c) => { c.position.copy(c.userData.home); c.quaternion.identity(); }); turnsLeft = 10 + Math.floor(Math.random() * 6); phase = 'wait'; timer = 0.8; } }
+    };
+    return { group, update };
+  }
 
-  const draw = () => {
-    canvasRaf = requestAnimationFrame(draw);
-    canvasT += 0.013;
-    const t = canvasT;
-    const dark = document.documentElement.getAttribute('data-theme') !== 'light';
-    const AC = dark ? '34,211,238' : '37,99,235';
-    const AC2 = dark ? '99,102,241' : '79,70,229';
-    const mx = mouse.x / (W || 1);
-    const my = mouse.y / (H || 1);
+  /* ---- CRT screen texture (procedural fallback) ---- */
+  _crtScreen(T) {
+    const c = document.createElement('canvas'); c.width = 256; c.height = 200;
+    const x = c.getContext('2d');
+    const draw = (t) => {
+      x.clearRect(0, 0, 256, 200);
+      let sky = x.createLinearGradient(0, 0, 0, 116); sky.addColorStop(0, '#190a34'); sky.addColorStop(1, '#4a1560');
+      x.fillStyle = sky; x.fillRect(0, 0, 256, 116);
+      const cx = 128, cy = 110, R = 42;
+      x.save(); x.beginPath(); x.rect(0, 0, 256, 116); x.clip();
+      let sun = x.createLinearGradient(0, cy - R, 0, cy + R); sun.addColorStop(0, '#ffe27a'); sun.addColorStop(0.5, '#ff7ac6'); sun.addColorStop(1, '#ff2f86');
+      x.fillStyle = sun; x.beginPath(); x.arc(cx, cy, R, 0, Math.PI * 2); x.fill();
+      x.fillStyle = '#2b0f47'; for (let i = 0; i < 7; i++) { const yy = cy + 3 + i * 5; x.fillRect(cx - R, yy, 2 * R, 2 + i * 0.4); }
+      x.restore();
+      let gr = x.createLinearGradient(0, 116, 0, 200); gr.addColorStop(0, '#0b0a20'); gr.addColorStop(1, '#170a30');
+      x.fillStyle = gr; x.fillRect(0, 116, 256, 84);
+      x.fillStyle = 'rgba(255,60,150,.55)'; x.fillRect(0, 114, 256, 3);
+      x.strokeStyle = 'rgba(34,240,255,.7)'; x.lineWidth = 1;
+      for (let i = 0; i < 14; i++) { const f = ((i + (t * 0.5) % 1) / 14); const yy = 117 + f * f * 83; x.globalAlpha = 0.15 + 0.6 * f; x.beginPath(); x.moveTo(0, yy); x.lineTo(256, yy); x.stroke(); }
+      x.globalAlpha = 0.72;
+      for (let i = -7; i <= 7; i++) { x.beginPath(); x.moveTo(128 + i * 5, 117); x.lineTo(128 + i * 40, 200); x.stroke(); }
+      x.globalAlpha = 1;
+      x.fillStyle = 'rgba(0,0,0,.16)'; for (let y = 0; y < 200; y += 3) x.fillRect(0, y, 256, 1);
+      x.fillStyle = 'rgba(120,80,200,' + (0.05 + 0.03 * Math.sin(t * 8)).toFixed(3) + ')'; x.fillRect(0, 0, 256, 200);
+    };
+    const texture = new T.CanvasTexture(c); texture.minFilter = T.LinearFilter;
+    draw(0);
+    return { texture, draw };
+  }
 
-    ctx.clearRect(0, 0, W, H);
+  _floppyDisk(T) {
+    const g = new T.Group();
+    const shell = new T.MeshStandardMaterial({ color: 0x2b2f78, roughness: 0.5, metalness: 0.16 });
+    g.add(new T.Mesh(this._roundedBox(T, 2, 2.06, 0.22, 0.08), shell));
+    const corner = new T.Mesh(new T.BoxGeometry(0.32, 0.32, 0.24), shell); corner.position.set(0.86, 0.87, 0); corner.rotation.z = Math.PI / 4; g.add(corner);
+    const shutter = new T.Mesh(this._roundedBox(T, 1.08, 0.74, 0.26, 0.05), new T.MeshStandardMaterial({ color: 0xccd0da, roughness: 0.22, metalness: 0.86 }));
+    shutter.position.set(-0.02, 0.66, 0); g.add(shutter);
+    const win = new T.Mesh(new T.BoxGeometry(0.52, 0.52, 0.3), new T.MeshStandardMaterial({ color: 0x14173a, roughness: 0.5 })); win.position.set(-0.16, 0.66, 0); g.add(win);
+    const notch = new T.Mesh(new T.BoxGeometry(0.16, 0.52, 0.28), new T.MeshStandardMaterial({ color: 0x2a2d66 })); notch.position.set(0.36, 0.66, 0); g.add(notch);
+    const label = new T.Mesh(this._roundedBox(T, 1.64, 1.0, 0.04, 0.05), new T.MeshStandardMaterial({ color: 0xf4f5f9, roughness: 0.9 })); label.position.set(0, -0.34, 0.115); g.add(label);
+    const head = new T.Mesh(new T.BoxGeometry(1.64, 0.22, 0.02), new T.MeshStandardMaterial({ color: 0x2563eb, roughness: 0.7 })); head.position.set(0, 0.02, 0.14); g.add(head);
+    for (let i = 0; i < 3; i++) { const ln = new T.Mesh(new T.BoxGeometry(1.36, 0.05, 0.02), new T.MeshStandardMaterial({ color: 0xaab2cc })); ln.position.set(0, -0.28 - i * 0.2, 0.14); g.add(ln); }
+    [-0.82, 0.82].forEach((dx) => { const h = new T.Mesh(new T.BoxGeometry(0.14, 0.14, 0.26), new T.MeshStandardMaterial({ color: 0x14173a })); h.position.set(dx, -0.92, 0); g.add(h); });
+    const hub = new T.Mesh(new T.CylinderGeometry(0.18, 0.18, 0.06, 26), new T.MeshStandardMaterial({ color: 0xb7bac4, metalness: 0.75, roughness: 0.28 }));
+    hub.rotation.x = Math.PI / 2; hub.position.set(0, 0.16, -0.13); g.add(hub);
+    return g;
+  }
 
-    STARS.forEach((s) => {
-      s.x = ((s.x + s.vx) + 1) % 1;
-      s.y = ((s.y + s.vy) + 1) % 1;
-      const px = s.x * W + (s.x - (mx || 0.5)) * s.depth * -16;
-      const py = s.y * H + (s.y - (my || 0.5)) * s.depth * -12;
-      if (dark && s.r > 1.1) { ctx.shadowColor = `rgba(${AC},0.9)`; ctx.shadowBlur = 6; }
-      ctx.fillStyle = `rgba(${AC},${(s.a * (dark ? 1 : 0.45)).toFixed(3)})`;
-      ctx.beginPath(); ctx.arc(px, py, s.r, 0, Math.PI * 2); ctx.fill();
-      ctx.shadowBlur = 0;
+  /* ---- procedural CRT workstation: sharper edges + more detail ---- */
+  _makeCRT(T) {
+    const g = new T.Group();
+    const beige = new T.MeshStandardMaterial({ color: 0xe7dfcb, roughness: 0.66, metalness: 0.03 });
+    const beigeD = new T.MeshStandardMaterial({ color: 0xccc1a8, roughness: 0.72, metalness: 0.03 });
+    const beigeL = new T.MeshStandardMaterial({ color: 0xf1ebda, roughness: 0.6, metalness: 0.03 });
+    const dark = new T.MeshStandardMaterial({ color: 0x1c1f26, roughness: 0.55, metalness: 0.15 });
+    const graphite = new T.MeshStandardMaterial({ color: 0x33373f, roughness: 0.5, metalness: 0.2 });
+    const bx = (w, h, d) => new T.BoxGeometry(w, h, d);
+
+    // ---- monitor ----
+    const mon = new T.Group();
+    // main enclosure — sharp box with a small chamfer only
+    mon.add(new T.Mesh(this._roundedBox(T, 2.24, 2.02, 1.85, 0.09), beige));
+    // tapered CRT hump at the back
+    const back = new T.Mesh(this._roundedBox(T, 1.55, 1.45, 0.85, 0.1), beigeD); back.position.set(0, 0.0, -1.2); mon.add(back);
+    const backTip = new T.Mesh(this._roundedBox(T, 0.9, 0.85, 0.4, 0.08), beigeD); backTip.position.set(0, 0.0, -1.65); mon.add(backTip);
+    // recessed front bezel (sharp), then a sunken screen well
+    const bezel = new T.Mesh(this._roundedBox(T, 2.02, 1.78, 0.16, 0.07), beigeL); bezel.position.set(0, 0.05, 0.9); mon.add(bezel);
+    const well = new T.Mesh(this._roundedBox(T, 1.66, 1.4, 0.12, 0.05), beigeD); well.position.set(0, 0.09, 0.97); mon.add(well);
+    const frame = new T.Mesh(this._roundedBox(T, 1.52, 1.26, 0.1, 0.04), dark); frame.position.set(0, 0.09, 1.0); mon.add(frame);
+    const scr = this._crtScreen(T);
+    const screen = new T.Mesh(this._roundedBox(T, 1.4, 1.12, 0.04, 0.06), new T.MeshBasicMaterial({ map: scr.texture })); screen.position.set(0, 0.09, 1.03); mon.add(screen);
+    const gloss = new T.Mesh(this._roundedBox(T, 1.4, 1.12, 0.02, 0.06), new T.MeshPhysicalMaterial({ color: 0x0a0f14, transparent: true, opacity: 0.12, roughness: 0.04, metalness: 0, clearcoat: 1 })); gloss.position.set(0, 0.09, 1.06); mon.add(gloss);
+    const glow = new T.PointLight(0x8b5cf6, 0.8, 4); glow.position.set(0, 0.1, 1.7); mon.add(glow);
+    const glow2 = new T.PointLight(0x22d3ee, 0.45, 3.4); glow2.position.set(0, -0.2, 1.6); mon.add(glow2);
+    // bottom control strip: brand plate + buttons + power LED
+    const strip = new T.Mesh(bx(2.0, 0.24, 0.06), beigeL); strip.position.set(0, -0.82, 0.94); mon.add(strip);
+    const badge = new T.Mesh(bx(0.5, 0.1, 0.03), graphite); badge.position.set(-0.72, -0.82, 0.99); mon.add(badge);
+    [0.0, 0.16, 0.32].forEach((dx) => { const b = new T.Mesh(bx(0.1, 0.05, 0.04), beigeD); b.position.set(dx, -0.82, 0.99); mon.add(b); });
+    const dial = new T.Mesh(new T.CylinderGeometry(0.05, 0.05, 0.05, 18), beigeD); dial.rotation.x = Math.PI / 2; dial.position.set(0.56, -0.82, 0.99); mon.add(dial);
+    const led = new T.Mesh(new T.SphereGeometry(0.032, 16, 16), new T.MeshBasicMaterial({ color: 0x53ff8a })); led.position.set(0.78, -0.82, 0.99); mon.add(led);
+    const ledGlow = new T.PointLight(0x53ff8a, 0.35, 1.2); ledGlow.position.copy(led.position); mon.add(ledGlow);
+    // top + side ventilation grilles (many thin slots)
+    for (let i = 0; i < 9; i++) { const vt = new T.Mesh(bx(1.4, 0.015, 0.055), beigeD); vt.position.set(0, 1.02, -0.5 + i * 0.13); mon.add(vt); }
+    for (let s = -1; s <= 1; s += 2) for (let i = 0; i < 7; i++) { const vt = new T.Mesh(bx(0.03, 0.7, 0.05), beigeD); vt.position.set(s * 1.13, 0.1, -0.35 + i * 0.12); mon.add(vt); }
+    mon.position.set(0, 0.5, 0); mon.rotation.x = -0.06; g.add(mon);
+
+    // ---- pedestal / tilt-swivel base ----
+    const neck = new T.Mesh(new T.CylinderGeometry(0.3, 0.44, 0.2, 6), beigeD); neck.position.set(0, -0.64, 0.02); g.add(neck);
+    const base = new T.Mesh(this._roundedBox(T, 1.9, 0.22, 1.5, 0.08), beige); base.position.set(0, -0.82, 0.05); g.add(base);
+    const baseLip = new T.Mesh(this._roundedBox(T, 1.7, 0.06, 1.3, 0.05), beigeD); baseLip.position.set(0, -0.7, 0.05); g.add(baseLip);
+
+    // ---- horizontal desktop case under/behind (implied tower) : floppy + drive bays ----
+    const caseBox = new T.Mesh(this._roundedBox(T, 2.0, 0.42, 1.35, 0.06), beige); caseBox.position.set(0, -1.12, -0.1); g.add(caseBox);
+    const bay = new T.Mesh(bx(0.7, 0.12, 0.04), dark); bay.position.set(0.45, -1.06, 0.58); g.add(bay);
+    const floppy = new T.Mesh(bx(0.6, 0.04, 0.03), graphite); floppy.position.set(0.45, -1.16, 0.59); g.add(floppy);
+    const eject = new T.Mesh(bx(0.06, 0.04, 0.04), beigeL); eject.position.set(0.72, -1.18, 0.59); g.add(eject);
+    for (let i = 0; i < 4; i++) { const sl = new T.Mesh(bx(0.5, 0.012, 0.03), beigeD); sl.position.set(-0.5, -1.02 - i * 0.05, 0.58); g.add(sl); }
+    const pwr = new T.Mesh(new T.SphereGeometry(0.028, 14, 14), new T.MeshBasicMaterial({ color: 0x53ff8a })); pwr.position.set(-0.82, -1.1, 0.59); g.add(pwr);
+    const pwrGlow = new T.PointLight(0x53ff8a, 0.25, 1.0); pwrGlow.position.copy(pwr.position); g.add(pwrGlow);
+
+    g.scale.setScalar(1.0);
+    let t = 0;
+    const update = (dt) => { t += dt; scr.draw(t); scr.texture.needsUpdate = true; ledGlow.intensity = 0.28 + 0.14 * Math.sin(t * 3); };
+    return { group: g, update };
+  }
+
+  /* ---- computer: clean procedural CRT workstation (self-contained, no
+     texture glitches, sits in the upper part of the slot so it never
+     overlaps the caption text below) ---- */
+  _loadComputer(T, group) {
+    const crt = this._makeCRT(T);
+    // scale the whole thing to a fixed size so it always frames the same,
+    // then push it up a bit so it doesn't overlap the caption
+    const box = new T.Box3().setFromObject(crt.group);
+    const size = new T.Vector3(); box.getSize(size);
+    const center = new T.Vector3(); box.getCenter(center);
+    const maxd = Math.max(size.x, size.y, size.z) || 1;
+    const s = 1.67 / maxd;   // ~1.5× smaller than before so the whole rig fits
+    const holder = new T.Group();
+    crt.group.scale.setScalar(s);
+    // center, lift above caption, shift right so it clears the text column
+    crt.group.position.set(-center.x * s + 1.15, -center.y * s - 0.25, -center.z * s);
+    holder.add(crt.group);
+    group.add(holder);
+    return { ready: true, update: crt.update };
+  }
+
+  _loadComputerFBX(T, group) {
+    // legacy FBX path — kept for reference, no longer used
+    const state = { screenMat: null, ready: false, update: (dt, now) => { if (state.screenMat) state.screenMat.emissiveIntensity = 0.85 + 0.12 * Math.sin(now * 3); } };
+    const base = '/uploads/old-computer/';
+    const tl = new T.TextureLoader();
+    const tex = (p, srgb) => { const t = tl.load('/uploads/' + p); if (srgb) t.encoding = T.sRGBEncoding; return t; };
+    const mat = new T.MeshStandardMaterial({
+      map: tex('Old_Computer_BaseColor.png', true),
+      normalMap: tex('Old_Computer_Normal.png'),
+      roughnessMap: tex('Old_Computer_Roughness.png'),
+      metalnessMap: tex('Old_Computer_Metalness.png'),
+      aoMap: tex('Old_Computer_AO.png'),
+      metalness: 1, roughness: 1,
     });
-
-    for (let i = 0; i < STARS.length; i++) {
-      for (let j = i + 1; j < STARS.length; j++) {
-        const dx = (STARS[i].x - STARS[j].x) * W;
-        const dy = (STARS[i].y - STARS[j].y) * H;
-        const d = Math.sqrt(dx * dx + dy * dy);
-        if (d < 130) {
-          const a = (1 - d / 130) * (dark ? 0.17 : 0.055);
-          ctx.strokeStyle = `rgba(${AC},${a.toFixed(3)})`;
-          ctx.lineWidth = 0.4;
-          ctx.beginPath(); ctx.moveTo(STARS[i].x * W, STARS[i].y * H); ctx.lineTo(STARS[j].x * W, STARS[j].y * H); ctx.stroke();
+    state.screenMat = mat;
+    const fallback = () => { const crt = this._makeCRT(T); group.add(crt.group); state.update = crt.update; state.ready = true; };
+    const finalize = (obj) => {
+      obj.traverse((c) => {
+        if (c.isMesh) {
+          c.material = mat;
+          const gm = c.geometry;
+          if (gm && gm.attributes.uv && !gm.attributes.uv2) gm.setAttribute('uv2', new T.BufferAttribute(gm.attributes.uv.array, 2));
         }
-      }
-    }
+      });
+      const box = new T.Box3().setFromObject(obj);
+      const size = new T.Vector3(); box.getSize(size);
+      const center = new T.Vector3(); box.getCenter(center);
+      const maxd = Math.max(size.x, size.y, size.z) || 1;
+      const s = 2.7 / maxd;
+      obj.scale.setScalar(s);
+      obj.position.set(-center.x * s, -center.y * s, -center.z * s);
+      const holder = new T.Group(); holder.add(obj); group.add(holder);
+      state.ready = true;
+    };
+    if (!T.FBXLoader) { fallback(); return state; }
+    try {
+      new T.FBXLoader().load(base + 'source/Old-Computer.fbx', finalize, undefined, fallback);
+    } catch (_) { fallback(); }
+    return state;
+  }
 
-    ctx.strokeStyle = `rgba(${AC2},${dark ? 0.04 : 0.022})`;
-    ctx.lineWidth = 0.5;
-    for (let x = 0; x < W; x += 90) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
-    for (let y = 0; y < H; y += 90) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+  _mkScene(T, grp) {
+    const s = new T.Scene();
+    s.add(grp);
+    s.add(new T.AmbientLight(0xffffff, 0.42));
+    s.add(new T.HemisphereLight(0xffffff, 0xd4dae6, 0.4));
+    const key = new T.DirectionalLight(0xffffff, 1.05); key.position.set(4, 7, 6); s.add(key);
+    const fill = new T.DirectionalLight(0xffffff, 0.35); fill.position.set(-6, 2, 4); s.add(fill);
+    const rim = new T.DirectionalLight(0xffffff, 0.55); rim.position.set(-3, 4, -6); s.add(rim);
+    const cam = new T.PerspectiveCamera(30, 1, 0.1, 100);
+    return { scene: s, cam, grp };
+  }
 
-    const tA = Math.max(0, 1 - window.scrollY / (H * 0.65));
-    if (tA > 0.01) {
-      ctx.globalAlpha = tA;
-      for (let yi = 0; yi < R - 1; yi++) {
-        for (let xi = 0; xi < C - 1; xi++) {
-          const v0 = vtx(xi, yi, t), v1 = vtx(xi + 1, yi, t), v2 = vtx(xi + 1, yi + 1, t), v3 = vtx(xi, yi + 1, t);
-          const avgH = (v0.h + v1.h + v2.h + v3.h) / 4;
-          if (avgH > 0.025) {
-            ctx.fillStyle = `rgba(${AC},${Math.min(avgH * 0.16, 0.092).toFixed(4)})`;
-            ctx.beginPath(); ctx.moveTo(v0.x, v0.y); ctx.lineTo(v1.x, v1.y); ctx.lineTo(v2.x, v2.y); ctx.lineTo(v3.x, v3.y); ctx.closePath(); ctx.fill();
-          }
+  init() {
+    const T = window.THREE;
+    const cv = $('retroGl');
+    if (!cv || !T) return;
+    const renderer = new T.WebGLRenderer({ canvas: cv, antialias: true, alpha: true, preserveDrawingBuffer: true });
+    renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
+    renderer.setClearColor(0x000000, 0);
+    renderer.outputEncoding = T.sRGBEncoding;
+    renderer.toneMapping = T.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 0.92;
+    renderer.autoClear = false;
+    this.renderer = renderer;
+    const size = () => renderer.setSize(innerWidth, innerHeight, false);
+    size();
+
+    const crtGroup = new T.Group();
+    const crtState = this._loadComputer(T, crtGroup);
+    const rubik = this._makeRubik(T);
+    const objs = [
+      { id: 'slot-crt', dist: 5.0, spin: 0, tilt: 0.22, scrollRot: true, baseRot: { x: -0.05, y: 0, z: 0 }, o: this._mkScene(T, crtGroup), up: (dt, now) => crtState.update(dt, now) },
+      { id: 'slot-rubik', dist: 8.4, spin: 0.26, tilt: 0.4, baseRot: { x: -0.16, y: 0.35, z: 0 }, o: this._mkScene(T, rubik.group), up: rubik.update },
+    ];
+    addEventListener('resize', size);
+
+    const clock = new T.Clock();
+    const frame = () => {
+      this._glRaf = requestAnimationFrame(frame);
+      const H = innerHeight;
+      renderer.setScissorTest(false);
+      renderer.clear();
+      renderer.setScissorTest(true);
+      const now = clock.getElapsedTime();
+      const dt = Math.min(0.05, now - (this._lt || now)); this._lt = now;
+      const pad = 16;
+      for (const o of objs) {
+        const el = $(o.id);
+        if (!el) continue;
+        const r = el.getBoundingClientRect();
+        const vw = r.width - pad * 2, top = r.top + pad, h = r.height - pad * 2;
+        if (vw <= 0 || h <= 0 || top + h < 40 || top > H - 40) continue;
+        const vx = r.left + pad, vy = H - (top + h);
+        renderer.setViewport(vx, vy, vw, h);
+        renderer.setScissor(vx, vy, vw, h);
+        const cam = o.o.cam; cam.aspect = vw / h; cam.position.set(0, 0, o.dist); cam.lookAt(0, 0, 0); cam.updateProjectionMatrix();
+        const grp = o.o.grp, b = o.baseRot;
+        if (this.reduced) {
+          grp.rotation.set(b.x + 0.14, b.y, b.z);
+          if (o.up) o.up(dt, now);
+        } else if (o.scrollRot) {
+          const prog = Math.max(0, Math.min(1, 1 - (r.top + r.height / 2) / H));
+          const targetY = b.y + (prog - 0.5) * 1.9;
+          o._sy = o._sy == null ? targetY : o._sy + (targetY - o._sy) * 0.08;
+          grp.rotation.y = o._sy;
+          grp.rotation.x = b.x + Math.sin(now * 0.6) * 0.03 + (this.mouse.y - 0.5) * o.tilt * 0.5;
+          grp.rotation.z = b.z + (this.mouse.x - 0.5) * 0.05;
+          grp.position.y = Math.sin(now * 0.9) * 0.07;
+          if (o.up) o.up(dt, now);
+        } else {
+          o._spin = (o._spin || 0) + o.spin * dt;
+          grp.rotation.y = b.y + o._spin;
+          grp.rotation.x = b.x + Math.sin(now * 0.7 + o.dist) * 0.05 + (this.mouse.y - 0.5) * o.tilt;
+          grp.rotation.z = b.z + (this.mouse.x - 0.5) * 0.08;
+          grp.position.y = Math.sin(now * 0.9 + o.dist) * 0.12;
+          if (o.up) o.up(dt, now);
         }
+        renderer.render(o.o.scene, o.o.cam);
       }
-      for (let yi = 0; yi < R; yi++) {
-        for (let xi = 0; xi < C; xi++) {
-          const v = vtx(xi, yi, t);
-          if (xi < C - 1) {
-            const vr = vtx(xi + 1, yi, t);
-            const a = Math.max(0, (v.h + vr.h) * 0.8 + 0.1) * (dark ? 0.68 : 0.3);
-            ctx.strokeStyle = `rgba(${AC},${Math.min(a, 0.56).toFixed(3)})`; ctx.lineWidth = 0.75;
-            ctx.beginPath(); ctx.moveTo(v.x, v.y); ctx.lineTo(vr.x, vr.y); ctx.stroke();
-          }
-          if (yi < R - 1) {
-            const vd = vtx(xi, yi + 1, t);
-            const a = Math.max(0, (v.h + vd.h) * 0.7 + 0.07) * (dark ? 0.42 : 0.18);
-            ctx.strokeStyle = `rgba(${AC2},${Math.min(a, 0.36).toFixed(3)})`; ctx.lineWidth = 0.5;
-            ctx.beginPath(); ctx.moveTo(v.x, v.y); ctx.lineTo(vd.x, vd.y); ctx.stroke();
-          }
-          if (v.h > 0.11 && dark) {
-            ctx.shadowColor = `rgba(${AC},0.95)`; ctx.shadowBlur = 14;
-            ctx.fillStyle = `rgba(${AC},${Math.min(v.h * 2.8, 1).toFixed(2)})`;
-            ctx.beginPath(); ctx.arc(v.x, v.y, Math.min(v.h * 3.2, 2.6), 0, Math.PI * 2); ctx.fill();
-            ctx.shadowBlur = 0;
-          }
-        }
-      }
-      ctx.globalAlpha = 1;
-    }
-  };
-  draw();
+    };
+    frame();
+  }
 }
 
-function initSparkline() {
-  const cv = document.getElementById('spark-canvas');
+/* ---------- Constellation background ---------- */
+
+function initConstellation() {
+  const cv = $('constellation');
   if (!cv) return;
   const ctx = cv.getContext('2d');
-  const dpr = window.devicePixelRatio || 1;
-  cv.width = cv.offsetWidth * dpr;
-  cv.height = cv.offsetHeight * dpr;
-  const W = cv.width, H = cv.height;
-  if (!W || !H) return;
-  const dark = document.documentElement.getAttribute('data-theme') !== 'light';
-  const data = [28, 40, 33, 58, 48, 72, 62, 78, 68, 88, 80, 94];
-  const mn = Math.min(...data), mx2 = Math.max(...data);
-  const pts = data.map((v, i) => ({
-    x: (i / (data.length - 1)) * W,
-    y: H - ((v - mn) / (mx2 - mn)) * H * 0.78 - H * 0.11,
-  }));
-  const g = ctx.createLinearGradient(0, 0, 0, H);
-  g.addColorStop(0, dark ? 'rgba(34,211,238,.28)' : 'rgba(37,99,235,.22)');
-  g.addColorStop(1, 'transparent');
-  ctx.clearRect(0, 0, W, H);
-  ctx.fillStyle = g;
-  ctx.beginPath(); ctx.moveTo(pts[0].x, H);
-  pts.forEach((p) => ctx.lineTo(p.x, p.y));
-  ctx.lineTo(pts[pts.length - 1].x, H); ctx.closePath(); ctx.fill();
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const mobile = matchMedia('(max-width: 720px)').matches;
+  let W, H, pts, DPR = Math.min(devicePixelRatio || 1, 2);
+  const COUNT = mobile ? 48 : 130;
+  const LINK = mobile ? 135 : 185;
+  const mouse = { x: 0.5, y: 0.5 };
+  addEventListener('mousemove', (e) => { mouse.x = e.clientX / innerWidth; mouse.y = e.clientY / innerHeight; }, { passive: true });
+  const resize = () => { W = cv.width = innerWidth * DPR; H = cv.height = innerHeight * DPR; cv.style.width = innerWidth + 'px'; cv.style.height = innerHeight + 'px'; };
+  resize();
+  pts = Array.from({ length: COUNT }, () => ({ x: Math.random() * W, y: Math.random() * H, vx: (Math.random() - 0.5) * 0.18 * DPR, vy: (Math.random() - 0.5) * 0.18 * DPR, r: (Math.random() * 1.9 + 1.0) * DPR }));
+  let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(resize, 150); });
 
-  ctx.strokeStyle = dark ? 'rgba(34,211,238,.85)' : 'rgba(37,99,235,.85)';
-  ctx.lineWidth = 1.6 * dpr; ctx.lineJoin = 'round';
-  ctx.beginPath(); pts.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y))); ctx.stroke();
+  const drawConst = (m) => {
+    ctx.clearRect(0, 0, W, H);
+    const maxD = LINK * DPR;
+    for (let i = 0; i < pts.length; i++) for (let j = i + 1; j < pts.length; j++) {
+      const dx = pts[i].x - pts[j].x, dy = pts[i].y - pts[j].y, d = Math.hypot(dx, dy);
+      if (d < maxD) { const a = (1 - d / maxD) * 0.34; ctx.strokeStyle = 'rgba(37,99,235,' + a.toFixed(3) + ')'; ctx.lineWidth = (0.5 + (1 - d / maxD) * 0.8) * DPR; ctx.beginPath(); ctx.moveTo(pts[i].x, pts[i].y); ctx.lineTo(pts[j].x, pts[j].y); ctx.stroke(); }
+    }
+    if (m) { const cR = 220 * DPR; for (const p of pts) { const d = Math.hypot(p.x - m.x, p.y - m.y); if (d < cR) { const a = (1 - d / cR) * 0.55; ctx.strokeStyle = 'rgba(37,99,235,' + a.toFixed(3) + ')'; ctx.lineWidth = 1.1 * DPR; ctx.beginPath(); ctx.moveTo(m.x, m.y); ctx.lineTo(p.x, p.y); ctx.stroke(); } } }
+    ctx.shadowColor = 'rgba(37,99,235,.55)';
+    for (const p of pts) { let bright = 0; if (m) { const d = Math.hypot(p.x - m.x, p.y - m.y); bright = Math.max(0, 1 - d / (200 * DPR)); } ctx.shadowBlur = bright * 12 * DPR; ctx.fillStyle = 'rgba(37,99,235,' + (0.42 + bright * 0.5).toFixed(3) + ')'; ctx.beginPath(); ctx.arc(p.x, p.y, p.r * (1 + bright * 0.6), 0, Math.PI * 2); ctx.fill(); }
+    ctx.shadowBlur = 0;
+  };
 
-  pts.forEach((p) => {
-    ctx.fillStyle = dark ? 'rgba(34,211,238,.9)' : 'rgba(37,99,235,.9)';
-    ctx.beginPath(); ctx.arc(p.x, p.y, 2.4 * dpr, 0, Math.PI * 2); ctx.fill();
-  });
+  if (reduced) { drawConst(null); return; }
+  const loop = () => {
+    requestAnimationFrame(loop);
+    const mx = mouse.x * W, my = mouse.y * H;
+    for (const p of pts) {
+      p.x += p.vx; p.y += p.vy;
+      if (p.x < 0 || p.x > W) p.vx *= -1;
+      if (p.y < 0 || p.y > H) p.vy *= -1;
+      const dx = p.x - mx, dy = p.y - my, d2 = dx * dx + dy * dy, R = 110 * DPR;
+      if (d2 < R * R && d2 > 1) { const f = (1 - Math.sqrt(d2) / R) * 0.6; p.x += dx / Math.sqrt(d2) * f; p.y += dy / Math.sqrt(d2) * f; }
+    }
+    drawConst({ x: mx, y: my });
+  };
+  loop();
 }
 
-// ---------- Init ----------
+/* ---------- Boot ---------- */
 
 async function init() {
-  initThemeToggle();
-  initMobileMenu();
+  initNav();
+  initFades();
+  initProjectHover();
   initForm();
-  initLightbox();
-  initCanvas();
-  setAvatarStart();
-  revealAvatarWhenStable();
-  setTimeout(initSparkline, 50);
-
-  let resizeT;
-  window.addEventListener('resize', () => {
-    clearTimeout(resizeT);
-    resizeT = setTimeout(() => refreshAvatarPosition(), 150);
-  });
-
-  let scrollRaf = null;
-  window.addEventListener('scroll', () => {
-    if (scrollRaf) return;
-    scrollRaf = requestAnimationFrame(() => { handleScroll(); scrollRaf = null; });
-  }, { passive: true });
-  window.addEventListener('mousemove', (e) => { mouse = { x: e.clientX, y: e.clientY }; }, { passive: true });
-  handleScroll();
+  initConstellation();
+  if (!matchMedia('(max-width: 720px)').matches && window.THREE) {
+    new Retro3D().init();
+  }
 
   try {
     const res = await fetch('/api/site');
-    if (!res.ok) throw new Error('bad status ' + res.status);
-    render(await res.json());
-  } catch (err) {
-    console.error('Failed to load site data:', err);
-    observeFades();
-  }
-  loadBlog(true);
-  loadMusic();
+    if (res.ok) renderSite(await res.json());
+  } catch (_) { /* keep static design content */ }
+
+  loadNow(); loadTop();
+  setInterval(loadNow, 30000);
 }
 
-document.getElementById('blog-more') && document.getElementById('blog-more').addEventListener('click', () => loadBlog(false));
-
 document.addEventListener('DOMContentLoaded', init);
+
+// exposed for debugging / manual mounts
+window.Retro3D = Retro3D;

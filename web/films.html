@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Кино · Матвей Семёнов</title>
+  <meta name="description" content="Фильмы и сериалы, которые я посмотрел — с оценками и рецензиями.">
+  <meta name="robots" content="index, follow">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    html{scroll-behavior:smooth}
+    body{background:#f6f7f9;color:#14161c;font-family:'IBM Plex Sans',system-ui,sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+    a{color:#2563eb;text-decoration:none}
+    a:hover{color:#1d4ed8}
+    ::selection{background:#c7d5fb;color:#14161c}
+    .mono{font-family:'JetBrains Mono',monospace}
+    .wrap{max-width:1240px;margin:0 auto;padding:0 28px}
+
+    nav.top{position:fixed;top:0;left:0;right:0;z-index:40;background:rgba(246,247,249,.82);backdrop-filter:blur(18px) saturate(160%);-webkit-backdrop-filter:blur(18px) saturate(160%);box-shadow:0 1px 0 rgba(20,22,28,.06)}
+    nav.top .inner{max-width:1240px;margin:0 auto;padding:18px 28px;display:flex;align-items:center;justify-content:space-between;gap:24px}
+    nav.top a.logo{display:flex;align-items:center;gap:10px;color:#14161c;font-weight:700}
+    nav.top a.logo span.badge{display:grid;place-items:center;width:34px;height:34px;border-radius:9px;background:#2563eb;color:#fff;font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:600}
+
+    .card{background:#fff;border:1px solid #e7e9ee;border-radius:20px}
+
+    /* filter bar */
+    .chip{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:999px;border:1px solid #e0e3e9;background:#fff;color:#4b515c;font-size:14px;cursor:pointer;transition:all .18s;user-select:none}
+    .chip:hover{border-color:#c9d6fb}
+    .chip.on{background:#2563eb;border-color:#2563eb;color:#fff}
+    .fbar input[type=search]{width:100%;max-width:340px;padding:11px 16px;border:1px solid #e0e3e9;border-radius:12px;background:#fff;font-size:15px;color:#14161c;outline:none}
+    .fbar input[type=search]:focus{border-color:#2563eb}
+    .fbar select{padding:11px 14px;border:1px solid #e0e3e9;border-radius:12px;background:#fff;font-size:14px;color:#14161c;outline:none;cursor:pointer}
+
+    /* grid */
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:22px}
+    .film{position:relative;background:#fff;border:1px solid #e7e9ee;border-radius:18px;overflow:hidden;cursor:pointer;transition:transform .3s cubic-bezier(.22,.61,.36,1),box-shadow .3s,border-color .3s}
+    .film:hover{transform:translateY(-6px);box-shadow:0 30px 50px -34px rgba(37,99,235,.5);border-color:#c9d6fb}
+    .film .poster{aspect-ratio:2/3;width:100%;object-fit:cover;background:#eef1f8;display:block}
+    .film .noposter{aspect-ratio:2/3;width:100%;display:grid;place-items:center;background:radial-gradient(130% 120% at 50% 22%,#fff,#e4e9f5);color:#9aa0ab;font-size:34px}
+    .film .meta{padding:14px 15px}
+    .film h3{font-size:15px;font-weight:600;line-height:1.25;margin-bottom:4px}
+    .film .sub{font-size:12px;color:#9aa0ab}
+    .badge-rate{position:absolute;top:10px;right:10px;display:inline-flex;align-items:center;gap:3px;padding:5px 9px;border-radius:9px;background:rgba(20,22,28,.82);color:#fff;font-size:13px;font-weight:600;font-family:'JetBrains Mono',monospace;backdrop-filter:blur(4px)}
+    .badge-kind{position:absolute;top:10px;left:10px;padding:4px 9px;border-radius:8px;font-size:10px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;font-family:'JetBrains Mono',monospace}
+    .k-movie{background:rgba(37,99,235,.9);color:#fff}
+    .k-series{background:rgba(124,58,237,.9);color:#fff}
+    .fav{position:absolute;bottom:10px;right:10px;font-size:16px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.3))}
+
+    /* modal */
+    .overlay{position:fixed;inset:0;z-index:60;background:rgba(20,22,28,.55);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;padding:24px}
+    .overlay.open{display:flex}
+    .modal{background:#fff;border-radius:22px;max-width:760px;width:100%;max-height:88vh;overflow:auto;box-shadow:0 40px 90px -40px rgba(0,0,0,.5)}
+    .modal .head{display:flex;gap:22px;padding:26px 28px}
+    .modal .head img{width:150px;flex:0 0 150px;aspect-ratio:2/3;object-fit:cover;border-radius:12px;background:#eef1f8}
+    .modal .body{padding:0 28px 28px}
+    .modal .review{font-size:15px;line-height:1.7;color:#3a4048;white-space:pre-wrap}
+    .close-x{position:sticky;top:0;float:right;margin:14px 14px 0 0;width:34px;height:34px;border-radius:9px;border:1px solid #e7e9ee;background:#fff;font-size:16px;cursor:pointer;color:#4b515c}
+    .tag{display:inline-block;padding:5px 11px;border-radius:8px;background:#f0f2f6;color:#4b515c;font-size:12px;margin:0 6px 6px 0}
+
+    .empty{text-align:center;color:#9aa0ab;padding:70px 0;font-size:16px}
+
+    @media (max-width:720px){
+      .wrap{padding:0 18px}
+      nav.top .inner{padding:16px 18px}
+      .navlinks{display:none}
+      .grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}
+      .modal .head{flex-direction:column;align-items:center;text-align:center}
+      .modal .head img{width:180px;flex:0 0 auto}
+    }
+  </style>
+</head>
+<body>
+
+  <nav class="top">
+    <div class="inner">
+      <a href="/" class="logo"><span class="badge">МС</span><span style="font-size:15px">semenovm.ru</span></a>
+      <div class="navlinks" style="display:flex;align-items:center;gap:26px;font-size:14px">
+        <a href="/#about" style="color:#4b515c">О себе</a>
+        <a href="/#projects" style="color:#4b515c">Проекты</a>
+        <a href="/films" style="color:#2563eb;font-weight:600">Кино</a>
+        <a href="/#contacts" style="display:inline-flex;align-items:center;gap:7px;padding:9px 16px;border-radius:999px;background:#14161c;color:#fff;font-weight:500">Написать</a>
+      </div>
+    </div>
+  </nav>
+
+  <main class="wrap" style="padding-top:118px;padding-bottom:80px;position:relative;z-index:1">
+
+    <div class="mono" style="font-size:13px;color:#2563eb;margin-bottom:14px">// watched</div>
+    <h1 style="font-size:clamp(30px,4vw,46px);letter-spacing:-.02em;font-weight:700;margin-bottom:10px">Кино и сериалы</h1>
+    <p style="font-size:17px;color:#4b515c;max-width:620px;margin-bottom:8px">Всё, что я посмотрел — с личной оценкой и короткой рецензией. Мой домашний IMDb.</p>
+    <div id="stats" class="mono" style="font-size:13px;color:#9aa0ab;margin-bottom:30px"></div>
+
+    <!-- filter bar -->
+    <div class="fbar card" style="padding:18px 20px;margin-bottom:28px;display:flex;flex-direction:column;gap:16px">
+      <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:space-between">
+        <input id="q" type="search" placeholder="Поиск по названию, режиссёру…" autocomplete="off">
+        <select id="sort">
+          <option value="new">Сначала новые</option>
+          <option value="rating">По оценке ↓</option>
+          <option value="title">По алфавиту</option>
+          <option value="year">По году ↓</option>
+        </select>
+      </div>
+      <div id="kind-chips" style="display:flex;flex-wrap:wrap;gap:9px"></div>
+      <div id="status-chips" style="display:flex;flex-wrap:wrap;gap:9px"></div>
+      <div id="genre-chips" style="display:flex;flex-wrap:wrap;gap:9px"></div>
+    </div>
+
+    <div id="grid" class="grid"></div>
+    <div id="empty" class="empty" style="display:none">Ничего не найдено. Попробуй сбросить фильтры.</div>
+
+  </main>
+
+  <!-- detail modal -->
+  <div id="overlay" class="overlay">
+    <div class="modal">
+      <button class="close-x" id="close-modal" aria-label="Закрыть">✕</button>
+      <div id="modal-content"></div>
+    </div>
+  </div>
+
+  <footer class="wrap" style="padding:26px 28px 40px;color:#9aa0ab;font-size:13px;position:relative;z-index:1">
+    <a href="/" style="color:#4b515c">← На главную</a>
+  </footer>
+
+  <script src="/assets/films.js"></script>
+</body>
+</html>

@@ -16,6 +16,19 @@ func (s *Store) seed() error {
 	}
 	defer tx.Rollback()
 
+	email, err := s.encrypt("matvey59rus@gmail.com")
+	if err != nil {
+		return err
+	}
+	phone, err := s.encrypt("+7 904 840-97-88")
+	if err != nil {
+		return err
+	}
+	telegram, err := s.encrypt("boomchik93")
+	if err != nil {
+		return err
+	}
+
 	aboutRU := `Разработчик из Санкт-Петербурга. Учусь и параллельно строю реальные продукты — ` +
 		`от REST-API сервисов компьютерного зрения до full-stack веб-платформ. ` +
 		`Больше всего меня увлекает машинное обучение и его прикладные задачи: ` +
@@ -29,63 +42,53 @@ func (s *Store) seed() error {
 		`speech recognition and working with language models.`
 
 	_, err = tx.Exec(`INSERT INTO profile
-		(id,first_name,last_name,role,location,tagline,about_ru,about_en,age,email,phone,telegram,github,photo,resume)
-		VALUES (1,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+		(id,first_name,last_name,role,location,tagline,about_ru,about_en,age,email,phone,telegram,github,photo,resume,rubik_label,rubik_title,rubik_text)
+		VALUES (1,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
 		"Матвей", "Семёнов",
 		"Разработчик · Developer",
 		"Санкт-Петербург / Saint Petersburg",
 		"Backend & ML / Computer Vision",
 		aboutRU, aboutEN,
 		"", // age — заполни в админке
-		"matvey59rus@gmail.com",
-		"+7 904 840-97-88",
-		"boomchik93",
+		email,
+		phone,
+		telegram,
 		"boomchik93",
 		"/uploads/photo.jpg",
 		"/uploads/resume.pdf",
+		"// 3×3 · self-solving",
+		"Разбираю сложное — и собираю обратно",
+		"Любая задача — как кубик Рубика: сначала хаос вращений, потом система. Он сам крутит грани, рассыпается на кубики и собирается заново. А между коммитами —",
 	)
 	if err != nil {
 		return err
 	}
 
 	// ----- Skill groups -----
+	// level: "main" (основной) | "strong" (уверенно) | "work" (рабочий)
+	type seedSkill struct {
+		name  string
+		level string
+	}
 	skillGroups := []struct {
 		title  string
 		pos    int
-		skills []struct {
-			name      string
-			highlight bool
-		}
+		skills []seedSkill
 	}{
-		{"Языки / Languages", 0, []struct {
-			name      string
-			highlight bool
-		}{
-			{"Python", true}, {"JavaScript", true}, {"C#", false}, {"SQL", false}, {"HTML / CSS", false},
+		{"Языки / Languages", 0, []seedSkill{
+			{"Python", "main"}, {"JavaScript", "strong"}, {"C#", "work"}, {"SQL", "work"}, {"HTML / CSS", "work"},
 		}},
-		{"ML / Computer Vision", 1, []struct {
-			name      string
-			highlight bool
-		}{
-			{"PyTorch", true}, {"YOLOv8", true}, {"Whisper", false}, {"LLM (Qwen2.5)", false}, {"OpenCV", false},
+		{"ML / Computer Vision", 1, []seedSkill{
+			{"PyTorch", "main"}, {"YOLOv8", "strong"}, {"Whisper", "work"}, {"LLM (Qwen2.5)", "work"}, {"OpenCV", "work"},
 		}},
-		{"Бэкенд / Backend", 2, []struct {
-			name      string
-			highlight bool
-		}{
-			{"FastAPI", true}, {"ASP.NET Core", false}, {"REST API", false}, {"Pydantic", false},
+		{"Бэкенд / Backend", 2, []seedSkill{
+			{"FastAPI", "main"}, {"ASP.NET Core", "work"}, {"REST API", "work"}, {"Pydantic", "work"},
 		}},
-		{"Фронтенд / Frontend", 3, []struct {
-			name      string
-			highlight bool
-		}{
-			{"React", true}, {"Vite", false}, {"React Router", false},
+		{"Фронтенд / Frontend", 3, []seedSkill{
+			{"React", "main"}, {"Vite", "work"}, {"React Router", "work"},
 		}},
-		{"Инструменты / Tools", 4, []struct {
-			name      string
-			highlight bool
-		}{
-			{"Git", false}, {"Docker", false}, {"PostgreSQL", false}, {"SQLite", false}, {"Linux", false},
+		{"Инструменты / Tools", 4, []seedSkill{
+			{"Git", "work"}, {"Docker", "work"}, {"PostgreSQL", "work"}, {"SQLite", "work"}, {"Linux", "work"},
 		}},
 	}
 	for _, g := range skillGroups {
@@ -95,8 +98,10 @@ func (s *Store) seed() error {
 		}
 		gid, _ := res.LastInsertId()
 		for i, sk := range g.skills {
-			if _, err := tx.Exec(`INSERT INTO skills(group_id,name,highlight,pos) VALUES(?,?,?,?)`,
-				gid, sk.name, sk.highlight, i); err != nil {
+			// highlight kept in sync for any legacy reader: main/strong are highlighted
+			highlight := sk.level == "main" || sk.level == "strong"
+			if _, err := tx.Exec(`INSERT INTO skills(group_id,name,highlight,level,pos) VALUES(?,?,?,?,?)`,
+				gid, sk.name, highlight, sk.level, i); err != nil {
 				return err
 			}
 		}

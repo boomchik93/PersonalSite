@@ -1,9 +1,7 @@
 package api
 
 import (
-	"crypto/rand"
 	"crypto/subtle"
-	"encoding/hex"
 	"net/http"
 	"time"
 
@@ -12,40 +10,19 @@ import (
 
 const sessionCookie = "cv_admin"
 const sessionTTL = 12 * time.Hour
+const jwtSubjectAdmin = "admin"
 
 // ---------- auth ----------
-
-func (s *Server) newSession() string {
-	b := make([]byte, 32)
-	_, _ = rand.Read(b)
-	token := hex.EncodeToString(b)
-	s.mu.Lock()
-	s.sessions[token] = time.Now().Add(sessionTTL)
-	s.mu.Unlock()
-	return token
-}
-
-func (s *Server) validSession(token string) bool {
-	if token == "" {
-		return false
-	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	exp, ok := s.sessions[token]
-	if !ok {
-		return false
-	}
-	if time.Now().After(exp) {
-		delete(s.sessions, token)
-		return false
-	}
-	return true
-}
 
 func (s *Server) requireAuth(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		c, err := r.Cookie(sessionCookie)
-		if err != nil || !s.validSession(c.Value) {
+		if err != nil {
+			writeError(w, http.StatusUnauthorized, "требуется вход")
+			return
+		}
+		claims, err := s.JWT.Verify(c.Value)
+		if err != nil || claims.Subject != jwtSubjectAdmin {
 			writeError(w, http.StatusUnauthorized, "требуется вход")
 			return
 		}
@@ -66,7 +43,11 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnauthorized, "неверный пароль")
 		return
 	}
-	token := s.newSession()
+	token, err := s.JWT.Issue(jwtSubjectAdmin, sessionTTL)
+	if err != nil {
+		s.serverError(w, "issue jwt", err)
+		return
+	}
 	http.SetCookie(w, &http.Cookie{
 		Name:     sessionCookie,
 		Value:    token,
@@ -80,11 +61,6 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
-	if c, err := r.Cookie(sessionCookie); err == nil {
-		s.mu.Lock()
-		delete(s.sessions, c.Value)
-		s.mu.Unlock()
-	}
 	http.SetCookie(w, &http.Cookie{Name: sessionCookie, Value: "", Path: "/", MaxAge: -1})
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
@@ -145,18 +121,27 @@ func (s *Server) handleDeleteSkillGroup(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
 
-func (s *Server) handleCreateSkill(w http.ResponseWriter, r *http.Request) {
+// id==0 = new skill, else update
+func (s *Server) handleSaveSkill(w http.ResponseWriter, r *http.Request) {
 	var sk store.Skill
 	if err := decodeJSON(r, &sk); err != nil {
 		writeError(w, http.StatusBadRequest, "некорректный запрос")
 		return
 	}
-	id, err := s.Store.CreateSkill(sk)
-	if err != nil {
-		s.serverError(w, "create skill", err)
+	if sk.ID == 0 {
+		id, err := s.Store.CreateSkill(sk)
+		if err != nil {
+			s.serverError(w, "create skill", err)
+			return
+		}
+		writeJSON(w, http.StatusCreated, map[string]int64{"id": id})
 		return
 	}
-	writeJSON(w, http.StatusCreated, map[string]int64{"id": id})
+	if err := s.Store.UpdateSkill(sk); err != nil {
+		s.serverError(w, "update skill", err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]int64{"id": sk.ID})
 }
 
 func (s *Server) handleDeleteSkill(w http.ResponseWriter, r *http.Request) {
@@ -254,6 +239,41 @@ func (s *Server) handleDeleteInterest(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := s.Store.DeleteInterest(id); err != nil {
 		s.serverError(w, "delete interest", err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+}
+
+// ---------- movies ----------
+
+func (s *Server) handleSaveMovie(w http.ResponseWriter, r *http.Request) {
+	var m store.Movie
+	if err := decodeJSON(r, &m); err != nil {
+		writeError(w, http.StatusBadRequest, "некорректный запрос")
+		return
+	}
+	if m.Rating < 0 {
+		m.Rating = 0
+	}
+	if m.Rating > 10 {
+		m.Rating = 10
+	}
+	id, err := s.Store.UpsertMovie(m)
+	if err != nil {
+		s.serverError(w, "save movie", err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]int64{"id": id})
+}
+
+func (s *Server) handleDeleteMovie(w http.ResponseWriter, r *http.Request) {
+	id, err := pathID(r)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "некорректный id")
+		return
+	}
+	if err := s.Store.DeleteMovie(id); err != nil {
+		s.serverError(w, "delete movie", err)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})

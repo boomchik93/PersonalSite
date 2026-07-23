@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
 	"embed"
+	"encoding/base64"
 	"errors"
 	"io/fs"
 	"log"
@@ -10,10 +12,13 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
 	"cv-semenov/internal/api"
+	"cv-semenov/internal/auth"
+	"cv-semenov/internal/crypto"
 	"cv-semenov/internal/notify"
 	"cv-semenov/internal/spotify"
 	"cv-semenov/internal/store"
@@ -32,7 +37,12 @@ func main() {
 		log.Fatalf("create uploads dir: %v", err)
 	}
 
-	st, err := store.Open(cfg.dbPath)
+	box, err := crypto.NewBox(cfg.encryptionKey)
+	if err != nil {
+		log.Fatalf("encryption key: %v", err)
+	}
+
+	st, err := store.Open(cfg.dbPath, box)
 	if err != nil {
 		log.Fatalf("open store: %v", err)
 	}
@@ -40,7 +50,8 @@ func main() {
 
 	tg := notify.NewTelegram(cfg.tgToken, cfg.tgChat)
 	sc := spotify.New(cfg.spotifyClientID, cfg.spotifyClientSecret, cfg.spotifyRedirectURI)
-	srv := api.New(st, tg, sc, cfg.adminPass, cfg.uploadsDir)
+	jwt := auth.New(cfg.jwtSecret)
+	srv := api.New(st, tg, sc, jwt, cfg.adminPass, cfg.uploadsDir)
 
 	mux := http.NewServeMux()
 	srv.Routes(mux)
@@ -102,7 +113,40 @@ func mountStatic(mux *http.ServeMux, uploadsDir string) {
 		serveFile(w, r, sub, "admin.html")
 	})
 
-	mux.Handle("GET /", fileServer)
+	// /cv serves the resume page on the main domain
+	mux.HandleFunc("GET /cv", func(w http.ResponseWriter, r *http.Request) {
+		serveFile(w, r, sub, "cv.html")
+	})
+	mux.HandleFunc("GET /cv/", func(w http.ResponseWriter, r *http.Request) {
+		serveFile(w, r, sub, "cv.html")
+	})
+
+	// /films — watched movies & series library
+	mux.HandleFunc("GET /films", func(w http.ResponseWriter, r *http.Request) {
+		serveFile(w, r, sub, "films.html")
+	})
+	mux.HandleFunc("GET /films/", func(w http.ResponseWriter, r *http.Request) {
+		serveFile(w, r, sub, "films.html")
+	})
+
+	// on the cv.* subdomain the root path shows the resume instead of the main site
+	mux.Handle("GET /", cvSubdomain(sub, fileServer))
+}
+
+// if the host starts with "cv." (cv.semenovm.ru) show the resume at "/".
+// everything else just goes to the normal file server
+func cvSubdomain(fsys fs.FS, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		host := r.Host
+		if i := strings.IndexByte(host, ':'); i >= 0 {
+			host = host[:i] // strip port
+		}
+		if r.URL.Path == "/" && strings.HasPrefix(host, "cv.") {
+			serveFile(w, r, fsys, "cv.html")
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 func serveFile(w http.ResponseWriter, r *http.Request, fsys fs.FS, name string) {
@@ -131,12 +175,14 @@ func logRequests(next http.Handler) http.Handler {
 }
 
 type config struct {
-	port       string
-	dbPath     string
-	uploadsDir string
-	adminPass  string
-	tgToken    string
-	tgChat     string
+	port          string
+	dbPath        string
+	uploadsDir    string
+	adminPass     string
+	tgToken       string
+	tgChat        string
+	jwtSecret     []byte
+	encryptionKey string
 
 	spotifyClientID     string
 	spotifyClientSecret string
@@ -159,7 +205,43 @@ func loadConfig() config {
 	if c.adminPass == "admin" {
 		log.Printf("WARNING: ADMIN_PASSWORD is the default 'admin' — set a strong password via env")
 	}
+	c.jwtSecret = loadJWTSecret()
+	c.encryptionKey = loadEncryptionKey()
 	return c
+}
+
+// set JWT_SECRET in prod so logins survive a restart. locally it's fine to
+// just make a random one, it only means you get logged out on restart
+func loadJWTSecret() []byte {
+	if v := os.Getenv("JWT_SECRET"); v != "" {
+		secret, err := base64.StdEncoding.DecodeString(v)
+		if err != nil || len(secret) < 32 {
+			log.Fatalf("JWT_SECRET must be a base64-encoded value of at least 32 bytes")
+		}
+		return secret
+	}
+	log.Printf("WARNING: JWT_SECRET not set — generating a random secret, admin sessions won't survive a restart")
+	secret := make([]byte, 32)
+	if _, err := rand.Read(secret); err != nil {
+		log.Fatalf("generate random jwt secret: %v", err)
+	}
+	return secret
+}
+
+// ENCRYPTION_KEY has to stay the same every boot - it's what decrypts the spotify
+// tokens and my contact info in the db. can't randomize it like the jwt secret or
+// all the old encrypted rows become garbage. prints a fresh one on first run so setup is easy
+func loadEncryptionKey() string {
+	if v := os.Getenv("ENCRYPTION_KEY"); v != "" {
+		return v
+	}
+	key := make([]byte, 32)
+	if _, err := rand.Read(key); err != nil {
+		log.Fatalf("generate encryption key: %v", err)
+	}
+	encoded := base64.StdEncoding.EncodeToString(key)
+	log.Fatalf("ENCRYPTION_KEY is not set. Add this to your environment and restart:\n\nENCRYPTION_KEY=%s\n\nKeep it secret and back it up — losing it makes encrypted data unrecoverable.", encoded)
+	return ""
 }
 
 func env(key, def string) string {

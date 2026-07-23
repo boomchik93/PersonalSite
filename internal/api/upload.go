@@ -31,11 +31,6 @@ func (s *Server) handleUpload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	kind := r.FormValue("kind")
-	spec, ok := allowedUploads[kind]
-	if !ok {
-		writeError(w, http.StatusBadRequest, "неизвестный тип загрузки")
-		return
-	}
 
 	file, header, err := r.FormFile("file")
 	if err != nil {
@@ -45,14 +40,29 @@ func (s *Server) handleUpload(w http.ResponseWriter, r *http.Request) {
 	defer file.Close()
 
 	ext := strings.ToLower(filepath.Ext(header.Filename))
-	if !spec.exts[ext] {
-		writeError(w, http.StatusUnsupportedMediaType, "недопустимый формат файла")
-		return
-	}
 
-	// keep base name but real ext, so browser can guess content type right
-	base := strings.TrimSuffix(spec.filename, filepath.Ext(spec.filename))
-	dstName := base + ext
+	// posters need unique names (many per library), unlike the fixed photo/resume.
+	var dstName string
+	if kind == "poster" {
+		if !allowedPhotoExts[ext] {
+			writeError(w, http.StatusUnsupportedMediaType, "недопустимый формат файла")
+			return
+		}
+		dstName = uniqueFilename("poster", ext)
+	} else {
+		spec, ok := allowedUploads[kind]
+		if !ok {
+			writeError(w, http.StatusBadRequest, "неизвестный тип загрузки")
+			return
+		}
+		if !spec.exts[ext] {
+			writeError(w, http.StatusUnsupportedMediaType, "недопустимый формат файла")
+			return
+		}
+		// keep base name but real ext, so browser can guess content type right
+		base := strings.TrimSuffix(spec.filename, filepath.Ext(spec.filename))
+		dstName = base + ext
+	}
 	dstPath := filepath.Join(s.UploadsDir, dstName)
 
 	dst, err := os.Create(dstPath)

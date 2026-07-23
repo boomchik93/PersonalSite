@@ -18,36 +18,7 @@ async function api(method, url, body) {
 
 let SITE = null;
 
-// ---------- theme + background (shared look with the public site) ----------
-
-const THEME_VARS = {
-  dark: {
-    '--bg': '#070B18', '--bg2': '#0D1425', '--t1': '#E8F4FF', '--t2': '#7A9BB8', '--t3': '#3D5A75',
-    '--ac': '#22D3EE', '--ac2': '#818CF8', '--navbg': 'rgba(7,11,24,.9)',
-  },
-  light: {
-    '--bg': '#F0F6FF', '--bg2': '#E0EAFF', '--t1': '#0F172A', '--t2': '#475569', '--t3': '#94A3B8',
-    '--ac': '#2563EB', '--ac2': '#6366F1', '--navbg': 'rgba(240,246,255,.92)',
-  },
-};
-
-function applyTheme(theme) {
-  const root = document.documentElement;
-  Object.entries(THEME_VARS[theme]).forEach(([k, v]) => root.style.setProperty(k, v));
-  root.setAttribute('data-theme', theme);
-  try { localStorage.setItem('ms-theme', theme); } catch (_) { /* ignore */ }
-  const btn = $('theme-toggle');
-  if (btn) btn.textContent = theme === 'dark' ? '☀' : '🌙';
-}
-
-function initThemeToggle() {
-  const saved = (typeof localStorage !== 'undefined' && localStorage.getItem('ms-theme')) || 'dark';
-  applyTheme(saved);
-  $('theme-toggle').addEventListener('click', () => {
-    const cur = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
-    applyTheme(cur === 'dark' ? 'light' : 'dark');
-  });
-}
+// ---------- background (shared look with the public site) ----------
 
 function initMobileMenu() {
   const btn = $('menu-toggle');
@@ -86,13 +57,12 @@ function initStarfield() {
   }));
   const draw = () => {
     requestAnimationFrame(draw);
-    const dark = document.documentElement.getAttribute('data-theme') !== 'light';
-    const AC = dark ? '34,211,238' : '37,99,235';
+    const AC = '37,99,235';
     ctx.clearRect(0, 0, W, H);
     STARS.forEach((s) => {
       s.x = ((s.x + s.vx) + 1) % 1;
       s.y = ((s.y + s.vy) + 1) % 1;
-      ctx.fillStyle = `rgba(${AC},${(s.a * (dark ? 1 : 0.4)).toFixed(3)})`;
+      ctx.fillStyle = `rgba(${AC},${(s.a * 0.4).toFixed(3)})`;
       ctx.beginPath(); ctx.arc(s.x * W, s.y * H, s.r, 0, Math.PI * 2); ctx.fill();
     });
   };
@@ -135,7 +105,7 @@ function switchTab(tab) {
   document.querySelectorAll('.tab').forEach((t) => t.classList.add('hidden'));
   $('tab-' + tab).classList.remove('hidden');
   if (tab === 'messages') loadMessages();
-  if (tab === 'blog') loadBlog();
+  if (tab === 'movies') loadMovies();
   if (tab === 'spotify') loadSpotifyStatus();
 }
 
@@ -146,6 +116,7 @@ async function loadAll() {
   renderSkills();
   renderEducation();
   renderInterests();
+  renderRubik();
 }
 
 function statusSpan(id) { return `<span id="${id}" class="admin-status"></span>`; }
@@ -209,6 +180,7 @@ async function saveProfile() {
     email: $('p-email').value, phone: $('p-phone').value,
     telegram: $('p-tg').value, github: $('p-gh').value,
     photo: p.photo, resume: p.resume,
+    rubik_label: p.rubik_label, rubik_title: p.rubik_title, rubik_text: p.rubik_text,
   };
   try { await api('PUT', '/api/admin/profile', body); SITE.profile = Object.assign(p, body); setStatus('p-status', 'Сохранено ✓', true); }
   catch (err) { setStatus('p-status', err.message, false); }
@@ -261,16 +233,37 @@ function bindProject(id) {
 }
 
 // ---------- skills ----------
+// level: main (основной) | strong (уверенно) | work (рабочий)
+const SKILL_LEVELS = [
+  { v: 'main', t: 'основной' },
+  { v: 'strong', t: 'уверенно' },
+  { v: 'work', t: 'рабочий' },
+];
+function skillLevelOf(s) {
+  // legacy rows have no level — derive from highlight so the dropdown isn't empty
+  if (s.level) return s.level;
+  return s.highlight ? 'strong' : 'work';
+}
+function levelOptions(sel) {
+  return SKILL_LEVELS.map((l) =>
+    `<option value="${l.v}"${l.v === sel ? ' selected' : ''}>${l.t}</option>`).join('');
+}
 function renderSkills() {
   const groups = (SITE.skills || []).map((g) => `
     <div class="admin-item">
       <div class="admin-item__head"><strong>${esc(g.title)}</strong>
         <button class="btn-danger" data-delgroup="${g.id}">Удалить группу</button></div>
-      <div>${(g.skills || []).map((s) =>
-        `<span class="admin-tag">${esc(s.name)}<button data-delskill="${s.id}">✕</button></span>`).join('')}</div>
+      <div class="admin-skill-rows">${(g.skills || []).map((s) => `
+        <div class="admin-toolbar-row" data-skillrow="${s.id}">
+          <input id="sk-name-${s.id}" value="${esc(s.name)}" style="max-width:200px">
+          <select id="sk-lvl-${s.id}">${levelOptions(skillLevelOf(s))}</select>
+          <button class="btn-small" data-savesk="${s.id}" data-gid="${g.id}">Сохранить</button>
+          <button class="btn-danger" data-delskill="${s.id}">✕</button>
+          ${statusSpan('sk-status-' + s.id)}
+        </div>`).join('')}</div>
       <div class="admin-toolbar-row">
         <input id="sk-new-${g.id}" placeholder="Новый навык" style="max-width:200px">
-        <label class="admin-toggle"><input type="checkbox" id="sk-hl-${g.id}"> выделить</label>
+        <select id="sk-newlvl-${g.id}">${levelOptions('work')}</select>
         <button class="btn-small" data-addskill="${g.id}">+ Навык</button>
       </div>
     </div>`).join('');
@@ -283,8 +276,16 @@ function renderSkills() {
   document.querySelectorAll('[data-addskill]').forEach((b) => b.addEventListener('click', async () => {
     const gid = Number(b.dataset.addskill);
     const name = $('sk-new-' + gid).value.trim(); if (!name) return;
-    await api('POST', '/api/admin/skills', { group_id: gid, name, highlight: $('sk-hl-' + gid).checked, pos: 0 });
+    const level = $('sk-newlvl-' + gid).value;
+    await api('POST', '/api/admin/skills', { group_id: gid, name, level, highlight: level !== 'work', pos: 0 });
     await loadAll();
+  }));
+  document.querySelectorAll('[data-savesk]').forEach((b) => b.addEventListener('click', async () => {
+    const id = Number(b.dataset.savesk);
+    const level = $('sk-lvl-' + id).value;
+    const body = { id, group_id: Number(b.dataset.gid), name: $('sk-name-' + id).value, level, highlight: level !== 'work', pos: 0 };
+    try { await api('POST', '/api/admin/skills', body); setStatus('sk-status-' + id, 'Сохранено ✓', true); SITE = await api('GET', '/api/site'); }
+    catch (err) { setStatus('sk-status-' + id, err.message, false); }
   }));
   document.querySelectorAll('[data-delskill]').forEach((b) => b.addEventListener('click', async () => {
     await api('DELETE', '/api/admin/skills/' + b.dataset.delskill); await loadAll();
@@ -372,6 +373,131 @@ function bindInt(id) {
   if (del) del.addEventListener('click', async () => { if (confirm('Удалить?')) { await api('DELETE', '/api/admin/interests/' + del.dataset.del); await loadAll(); } });
 }
 
+// ---------- rubik block (interests section copy) ----------
+// lives on the profile row, goes through the same profile endpoint
+function renderRubik() {
+  const p = SITE.profile;
+  $('tab-rubik').innerHTML = `
+    <div class="gc admin-card">
+      <h2>// Блок кубика</h2>
+      <div class="muted">Текст рядом с кубиком Рубика в разделе «Увлечения».</div>
+      <label>Метка (моно, над кубиком)</label><input id="rb-label" value="${esc(p.rubik_label)}" placeholder="// 3×3 · self-solving">
+      <label>Заголовок</label><input id="rb-title" value="${esc(p.rubik_title)}" placeholder="Разбираю сложное — и собираю обратно">
+      <label>Текст</label><textarea id="rb-text" rows="4">${esc(p.rubik_text)}</textarea>
+      <div class="admin-toolbar-row"><button id="rb-save" class="btn-primary neon-btn">Сохранить</button>${statusSpan('rb-status')}</div>
+    </div>`;
+  $('rb-save').addEventListener('click', saveRubik);
+}
+async function saveRubik() {
+  const p = SITE.profile;
+  // profile endpoint replaces the whole row, so send every field, overriding rubik ones
+  const body = {
+    first_name: p.first_name, last_name: p.last_name, role: p.role,
+    location: p.location, tagline: p.tagline, age: p.age,
+    about_ru: p.about_ru, about_en: p.about_en,
+    email: p.email, phone: p.phone, telegram: p.telegram, github: p.github,
+    photo: p.photo, resume: p.resume,
+    rubik_label: $('rb-label').value, rubik_title: $('rb-title').value, rubik_text: $('rb-text').value,
+  };
+  try {
+    await api('PUT', '/api/admin/profile', body);
+    SITE.profile = Object.assign(p, body);
+    setStatus('rb-status', 'Сохранено ✓', true);
+  } catch (err) { setStatus('rb-status', err.message, false); }
+}
+
+// ---------- movies ----------
+let MOVIES = [];
+const MOVIE_KINDS = [{ v: 'movie', t: 'Фильм' }, { v: 'series', t: 'Сериал' }];
+const MOVIE_STATUSES = [{ v: 'watched', t: 'Посмотрено' }, { v: 'dropped', t: 'Брошено' }, { v: 'planned', t: 'В планах' }];
+
+async function loadMovies() {
+  try { MOVIES = await api('GET', '/api/movies'); } catch (_) { MOVIES = []; }
+  if (!Array.isArray(MOVIES)) MOVIES = [];
+  renderMovies();
+}
+function movieOpts(list, sel) {
+  return list.map((o) => `<option value="${o.v}"${o.v === sel ? ' selected' : ''}>${o.t}</option>`).join('');
+}
+function renderMovies() {
+  const items = MOVIES.map((m) => movieForm(m)).join('');
+  $('tab-movies').innerHTML = `<div class="gc admin-card"><h2>// Кино (${MOVIES.length})</h2>
+    <div class="muted">Фильмы и сериалы для страницы <a href="/films" target="_blank">/films</a>.</div>
+    ${items}
+    <button class="btn-small" id="mv-add">+ Добавить фильм / сериал</button></div>`;
+  MOVIES.forEach((m) => bindMovie(m.id));
+  $('mv-add').addEventListener('click', () => {
+    MOVIES.unshift({ id: 0, title: '', kind: 'movie', year: '', rating: 0, review: '', poster: '', genres: '', status: 'watched', director: '', watched_at: '', favorite: false, pos: 0 });
+    renderMovies();
+  });
+}
+function movieForm(m) {
+  const k = m.id || 'new';
+  return `<div class="admin-item" data-k="${k}">
+    <div class="row">
+      <div style="flex:2"><label>Название</label><input id="mv-title-${k}" value="${esc(m.title)}"></div>
+      <div style="max-width:140px"><label>Тип</label><select id="mv-kind-${k}">${movieOpts(MOVIE_KINDS, m.kind)}</select></div>
+      <div style="max-width:100px"><label>Год</label><input id="mv-year-${k}" value="${esc(m.year)}" placeholder="2024"></div>
+      <div style="max-width:110px"><label>Оценка 0–10</label><input id="mv-rating-${k}" type="number" min="0" max="10" value="${m.rating || 0}"></div>
+    </div>
+    <div class="row">
+      <div><label>Режиссёр</label><input id="mv-director-${k}" value="${esc(m.director)}"></div>
+      <div><label>Жанры (через запятую)</label><input id="mv-genres-${k}" value="${esc(m.genres)}" placeholder="драма, фантастика"></div>
+    </div>
+    <div class="row">
+      <div style="max-width:170px"><label>Статус</label><select id="mv-status-${k}">${movieOpts(MOVIE_STATUSES, m.status)}</select></div>
+      <div style="max-width:170px"><label>Дата просмотра</label><input id="mv-watched-${k}" value="${esc(m.watched_at)}" placeholder="напр. 2024 или 12.03.24"></div>
+      <div style="display:flex;align-items:flex-end"><label class="admin-toggle"><input type="checkbox" id="mv-fav-${k}"${m.favorite ? ' checked' : ''}> ⭐ избранное</label></div>
+    </div>
+    <label>Постер — URL</label><input id="mv-poster-${k}" value="${esc(m.poster)}" placeholder="https://… или загрузите файл ниже">
+    <div class="row">
+      <div><label>Или загрузить постер</label><input id="mv-poster-file-${k}" type="file" accept="image/*"></div>
+    </div>
+    <label>Рецензия</label><textarea id="mv-review-${k}" rows="4">${esc(m.review)}</textarea>
+    <div class="admin-toolbar-row">
+      <button class="btn-small" data-save="${k}" data-id="${m.id}">Сохранить</button>
+      ${m.id ? `<button class="btn-danger" data-del="${m.id}">Удалить</button>` : ''}
+      ${statusSpan('mv-status-msg-' + k)}
+    </div></div>`;
+}
+function bindMovie(id) {
+  const k = id || 'new';
+  const card = document.querySelector(`#tab-movies .admin-item[data-k="${k}"]`);
+  if (!card) return;
+  const posterFile = $('mv-poster-file-' + k);
+  if (posterFile) posterFile.addEventListener('change', async (e) => {
+    if (!e.target.files || !e.target.files[0]) return;
+    const fd = new FormData(); fd.set('kind', 'poster'); fd.set('file', e.target.files[0]);
+    setStatus('mv-status-msg-' + k, 'Загрузка постера…', true);
+    try {
+      const res = await fetch('/api/admin/upload', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'ошибка загрузки');
+      $('mv-poster-' + k).value = data.url;
+      setStatus('mv-status-msg-' + k, 'Постер загружен — нажмите «Сохранить»', true);
+    } catch (err) { setStatus('mv-status-msg-' + k, err.message, false); }
+  });
+  card.querySelector(`[data-save="${k}"]`).addEventListener('click', async (e) => {
+    const body = {
+      id: Number(e.target.dataset.id) || 0,
+      title: $('mv-title-' + k).value, kind: $('mv-kind-' + k).value,
+      year: $('mv-year-' + k).value, rating: Number($('mv-rating-' + k).value) || 0,
+      review: $('mv-review-' + k).value, poster: $('mv-poster-' + k).value,
+      genres: $('mv-genres-' + k).value, status: $('mv-status-' + k).value,
+      director: $('mv-director-' + k).value, watched_at: $('mv-watched-' + k).value,
+      favorite: $('mv-fav-' + k).checked, pos: 0,
+    };
+    if (!body.title.trim()) { setStatus('mv-status-msg-' + k, 'Укажите название', false); return; }
+    try { await api('POST', '/api/admin/movies', body); await loadMovies(); }
+    catch (err) { setStatus('mv-status-msg-' + k, err.message, false); }
+  });
+  const del = card.querySelector('[data-del]');
+  if (del) del.addEventListener('click', async () => {
+    if (!confirm('Удалить запись?')) return;
+    await api('DELETE', '/api/admin/movies/' + del.dataset.del); await loadMovies();
+  });
+}
+
 // ---------- messages ----------
 async function loadMessages() {
   let msgs = [];
@@ -396,113 +522,6 @@ async function loadMessages() {
   document.querySelectorAll('[data-delmsg]').forEach((b) => b.addEventListener('click', async () => {
     if (confirm('Удалить сообщение?')) { await api('DELETE', '/api/admin/messages/' + b.dataset.delmsg); loadMessages(); }
   }));
-}
-
-// ---------- blog ----------
-let BLOG_POSTS = null;
-
-async function loadBlog() {
-  try { BLOG_POSTS = (await api('GET', '/api/admin/blog/posts')) || []; }
-  catch (_) { BLOG_POSTS = []; }
-  renderBlog();
-}
-
-function renderBlog() {
-  const items = (BLOG_POSTS || []).map((p) => postForm(p)).join('');
-  $('tab-blog').innerHTML = `<div class="gc admin-card"><h2>// Блог</h2>${items}
-    <button class="btn-small" id="post-add">+ Новый пост</button></div>`;
-  (BLOG_POSTS || []).forEach((p) => bindPost(p.id));
-  $('post-add').addEventListener('click', () => {
-    BLOG_POSTS.unshift({ id: 0, title: '', body: '', published: false, photos: [] });
-    renderBlog();
-  });
-}
-
-function postForm(p) {
-  const k = p.id || 'new';
-  const badge = p.id ? `<span class="admin-badge ${p.published ? 'admin-badge--pub' : 'admin-badge--draft'}">${p.published ? 'опубликован' : 'черновик'}</span>` : '';
-  const thumbs = p.id ? `<div class="admin-thumbs" id="post-thumbs-${k}">${photoThumbs(p)}</div>
-    <label>Добавить фото</label><input type="file" id="post-photos-${k}" accept="image/*" multiple>` :
-    `<div class="muted">Сохраните пост, чтобы прикрепить фото.</div>`;
-  return `<div class="admin-item" data-k="${k}">
-    <div class="admin-item__head"><strong>${esc(p.title) || '(без названия)'}</strong>${badge}</div>
-    <label>Заголовок</label><input id="post-title-${k}" value="${esc(p.title)}">
-    <label>Текст</label><textarea id="post-body-${k}" rows="5">${esc(p.body)}</textarea>
-    <label class="admin-toggle"><input type="checkbox" id="post-pub-${k}" ${p.published ? 'checked' : ''}> Опубликовано</label>
-    ${thumbs}
-    <div class="admin-toolbar-row">
-      <button class="btn-small" data-save="${k}" data-id="${p.id}">Сохранить</button>
-      ${p.id ? `<button class="btn-danger" data-del="${p.id}">Удалить пост</button>` : ''}
-      ${statusSpan('post-status-' + k)}
-    </div></div>`;
-}
-
-function photoThumbs(p) {
-  return (p.photos || []).map((ph, i) => `
-    <div class="admin-thumb" data-photo="${ph.id}">
-      <img src="${esc(ph.url)}" alt="">
-      <div class="admin-thumb__actions">
-        <button class="btn-icon" data-photo-up="${ph.id}" data-post="${p.id}" ${i === 0 ? 'disabled' : ''}>↑</button>
-        <button class="btn-icon" data-photo-down="${ph.id}" data-post="${p.id}" ${i === p.photos.length - 1 ? 'disabled' : ''}>↓</button>
-        <button class="btn-danger" data-photo-del="${ph.id}" data-post="${p.id}">✕</button>
-      </div>
-    </div>`).join('');
-}
-
-function bindPost(id) {
-  const k = id || 'new';
-  const card = document.querySelector(`#tab-blog .admin-item[data-k="${k}"]`);
-  if (!card) return;
-
-  card.querySelector(`[data-save="${k}"]`).addEventListener('click', async (e) => {
-    const body = {
-      id: Number(e.target.dataset.id) || 0,
-      title: $('post-title-' + k).value,
-      body: $('post-body-' + k).value,
-      published: $('post-pub-' + k).checked,
-    };
-    try { await api('POST', '/api/admin/blog/posts', body); await loadBlog(); }
-    catch (err) { setStatus('post-status-' + k, err.message, false); }
-  });
-
-  const del = card.querySelector('[data-del]');
-  if (del) del.addEventListener('click', async () => {
-    if (!confirm('Удалить пост вместе с фото?')) return;
-    await api('DELETE', '/api/admin/blog/posts/' + del.dataset.del); await loadBlog();
-  });
-
-  const photoInput = card.querySelector(`#post-photos-${k}`);
-  if (photoInput) photoInput.addEventListener('change', async () => {
-    if (!photoInput.files || !photoInput.files.length) return;
-    const fd = new FormData();
-    Array.from(photoInput.files).forEach((f) => fd.append('files', f));
-    setStatus('post-status-' + k, 'Загрузка…', true);
-    try {
-      const res = await fetch(`/api/admin/blog/posts/${id}/photos`, { method: 'POST', body: fd });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'ошибка загрузки');
-      await loadBlog();
-    } catch (err) { setStatus('post-status-' + k, err.message, false); }
-  });
-
-  card.querySelectorAll('[data-photo-del]').forEach((b) => b.addEventListener('click', async () => {
-    if (!confirm('Удалить фото?')) return;
-    await api('DELETE', '/api/admin/blog/photos/' + b.dataset.photoDel); await loadBlog();
-  }));
-  card.querySelectorAll('[data-photo-up]').forEach((b) => b.addEventListener('click', () => movePhoto(b.dataset.post, b.dataset.photoUp, -1)));
-  card.querySelectorAll('[data-photo-down]').forEach((b) => b.addEventListener('click', () => movePhoto(b.dataset.post, b.dataset.photoDown, 1)));
-}
-
-async function movePhoto(postId, photoId, delta) {
-  const post = (BLOG_POSTS || []).find((p) => String(p.id) === String(postId));
-  if (!post) return;
-  const ids = post.photos.map((ph) => ph.id);
-  const idx = ids.indexOf(Number(photoId));
-  const swapWith = idx + delta;
-  if (idx < 0 || swapWith < 0 || swapWith >= ids.length) return;
-  [ids[idx], ids[swapWith]] = [ids[swapWith], ids[idx]];
-  await api('POST', `/api/admin/blog/posts/${postId}/photos/reorder`, { ids });
-  await loadBlog();
 }
 
 // ---------- spotify ----------
@@ -537,8 +556,5 @@ function renderSpotify(status) {
   });
 }
 
-initThemeToggle();
 initMobileMenu();
-initNavGlass();
-initStarfield();
 checkAuth();

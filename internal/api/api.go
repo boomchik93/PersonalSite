@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"cv-semenov/internal/auth"
 	"cv-semenov/internal/notify"
 	"cv-semenov/internal/spotify"
 	"cv-semenov/internal/store"
@@ -19,24 +20,22 @@ type Server struct {
 	Store      *store.Store
 	Telegram   *notify.Telegram
 	Spotify    *spotify.Client
+	JWT        *auth.JWT
 	AdminPass  string
 	UploadsDir string
-
-	mu       sync.Mutex
-	sessions map[string]time.Time // token -> expiry
 
 	spotifyMu     sync.Mutex
 	spotifyStates map[string]time.Time // oauth CSRF state -> expiry
 }
 
-func New(st *store.Store, tg *notify.Telegram, sp *spotify.Client, adminPass, uploadsDir string) *Server {
+func New(st *store.Store, tg *notify.Telegram, sp *spotify.Client, jwt *auth.JWT, adminPass, uploadsDir string) *Server {
 	return &Server{
 		Store:         st,
 		Telegram:      tg,
 		Spotify:       sp,
+		JWT:           jwt,
 		AdminPass:     adminPass,
 		UploadsDir:    uploadsDir,
-		sessions:      make(map[string]time.Time),
 		spotifyStates: make(map[string]time.Time),
 	}
 }
@@ -56,7 +55,7 @@ func (s *Server) Routes(mux *http.ServeMux) {
 
 	mux.HandleFunc("POST /api/admin/skill-groups", s.requireAuth(s.handleSaveSkillGroup))
 	mux.HandleFunc("DELETE /api/admin/skill-groups/{id}", s.requireAuth(s.handleDeleteSkillGroup))
-	mux.HandleFunc("POST /api/admin/skills", s.requireAuth(s.handleCreateSkill))
+	mux.HandleFunc("POST /api/admin/skills", s.requireAuth(s.handleSaveSkill))
 	mux.HandleFunc("DELETE /api/admin/skills/{id}", s.requireAuth(s.handleDeleteSkill))
 
 	mux.HandleFunc("POST /api/admin/projects", s.requireAuth(s.handleSaveProject))
@@ -67,6 +66,10 @@ func (s *Server) Routes(mux *http.ServeMux) {
 
 	mux.HandleFunc("POST /api/admin/interests", s.requireAuth(s.handleSaveInterest))
 	mux.HandleFunc("DELETE /api/admin/interests/{id}", s.requireAuth(s.handleDeleteInterest))
+
+	mux.HandleFunc("GET /api/movies", s.handleListMovies)
+	mux.HandleFunc("POST /api/admin/movies", s.requireAuth(s.handleSaveMovie))
+	mux.HandleFunc("DELETE /api/admin/movies/{id}", s.requireAuth(s.handleDeleteMovie))
 
 	mux.HandleFunc("GET /api/admin/messages", s.requireAuth(s.handleListMessages))
 	mux.HandleFunc("POST /api/admin/messages/{id}/read", s.requireAuth(s.handleReadMessage))
@@ -140,6 +143,16 @@ func (s *Server) handleSite(w http.ResponseWriter, r *http.Request) {
 		Education: education,
 		Interests: interests,
 	})
+}
+
+// just dumps every movie, the filtering happens in the browser
+func (s *Server) handleListMovies(w http.ResponseWriter, r *http.Request) {
+	movies, err := s.Store.Movies()
+	if err != nil {
+		s.serverError(w, "movies", err)
+		return
+	}
+	writeJSON(w, http.StatusOK, movies)
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {

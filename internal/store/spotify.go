@@ -3,6 +3,7 @@ package store
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"time"
 )
 
@@ -94,6 +95,8 @@ type TopArtist struct {
 
 // ---------- tokens ----------
 
+// both tokens are encrypted in the db, they're basically the keys to my spotify
+// account so probably the most sensitive thing here
 func (s *Store) GetSpotifyTokens() (SpotifyTokens, error) {
 	var t SpotifyTokens
 	err := s.db.QueryRow(`SELECT refresh_token,access_token,expires_at,connected_at,last_error,last_poll_at FROM spotify_tokens WHERE id=1`).
@@ -101,26 +104,51 @@ func (s *Store) GetSpotifyTokens() (SpotifyTokens, error) {
 	if errors.Is(err, sql.ErrNoRows) {
 		return t, ErrNotFound
 	}
-	return t, err
+	if err != nil {
+		return t, err
+	}
+	if t.RefreshToken, err = s.decrypt(t.RefreshToken); err != nil {
+		return t, fmt.Errorf("decrypt refresh token: %w", err)
+	}
+	if t.AccessToken, err = s.decrypt(t.AccessToken); err != nil {
+		return t, fmt.Errorf("decrypt access token: %w", err)
+	}
+	return t, nil
 }
 
 func (s *Store) SaveSpotifyTokens(t SpotifyTokens) error {
-	_, err := s.db.Exec(`INSERT INTO spotify_tokens(id,refresh_token,access_token,expires_at,connected_at,last_error,last_poll_at)
+	refreshToken, err := s.encrypt(t.RefreshToken)
+	if err != nil {
+		return fmt.Errorf("encrypt refresh token: %w", err)
+	}
+	accessToken, err := s.encrypt(t.AccessToken)
+	if err != nil {
+		return fmt.Errorf("encrypt access token: %w", err)
+	}
+	_, err = s.db.Exec(`INSERT INTO spotify_tokens(id,refresh_token,access_token,expires_at,connected_at,last_error,last_poll_at)
 		VALUES(1,?,?,?,?,?,?)
 		ON CONFLICT(id) DO UPDATE SET refresh_token=excluded.refresh_token,access_token=excluded.access_token,
 			expires_at=excluded.expires_at,connected_at=excluded.connected_at,last_error=excluded.last_error,last_poll_at=excluded.last_poll_at`,
-		t.RefreshToken, t.AccessToken, t.ExpiresAt, t.ConnectedAt, t.LastError, t.LastPollAt)
+		refreshToken, accessToken, t.ExpiresAt, t.ConnectedAt, t.LastError, t.LastPollAt)
 	return err
 }
 
 func (s *Store) UpdateSpotifyAccessToken(accessToken, expiresAt string) error {
-	_, err := s.db.Exec(`UPDATE spotify_tokens SET access_token=?,expires_at=? WHERE id=1`, accessToken, expiresAt)
+	encrypted, err := s.encrypt(accessToken)
+	if err != nil {
+		return fmt.Errorf("encrypt access token: %w", err)
+	}
+	_, err = s.db.Exec(`UPDATE spotify_tokens SET access_token=?,expires_at=? WHERE id=1`, encrypted, expiresAt)
 	return err
 }
 
 // spotify doesn't always send a new refresh token back, only call this when it does
 func (s *Store) UpdateSpotifyRefreshToken(refreshToken string) error {
-	_, err := s.db.Exec(`UPDATE spotify_tokens SET refresh_token=? WHERE id=1`, refreshToken)
+	encrypted, err := s.encrypt(refreshToken)
+	if err != nil {
+		return fmt.Errorf("encrypt refresh token: %w", err)
+	}
+	_, err = s.db.Exec(`UPDATE spotify_tokens SET refresh_token=? WHERE id=1`, encrypted)
 	return err
 }
 

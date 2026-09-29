@@ -210,6 +210,15 @@ func (s *Store) migrate() error {
 		{"profile", "rubik_label", "TEXT NOT NULL DEFAULT '// 3×3 · self-solving'"},
 		{"profile", "rubik_title", "TEXT NOT NULL DEFAULT ''"},
 		{"profile", "rubik_text", "TEXT NOT NULL DEFAULT ''"},
+		{"movies", "original_title", "TEXT NOT NULL DEFAULT ''"},
+		{"movies", "description", "TEXT NOT NULL DEFAULT ''"},
+		{"movies", "countries", "TEXT NOT NULL DEFAULT ''"},
+		{"movies", "runtime", "INTEGER NOT NULL DEFAULT 0"},
+		{"movies", "kp_id", "INTEGER NOT NULL DEFAULT 0"},
+		{"movies", "imdb_id", "TEXT NOT NULL DEFAULT ''"},
+		{"movies", "tmdb_id", "INTEGER NOT NULL DEFAULT 0"},
+		{"movies", "kp_rating", "REAL NOT NULL DEFAULT 0"},
+		{"movies", "imdb_rating", "REAL NOT NULL DEFAULT 0"},
 	}
 	for _, a := range adds {
 		if err := s.addColumnIfMissing(a.table, a.column, a.def); err != nil {

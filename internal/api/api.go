@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"cv-semenov/internal/auth"
+	"cv-semenov/internal/moviemeta"
 	"cv-semenov/internal/notify"
 	"cv-semenov/internal/spotify"
 	"cv-semenov/internal/store"
@@ -20,6 +21,7 @@ type Server struct {
 	Store      *store.Store
 	Telegram   *notify.Telegram
 	Spotify    *spotify.Client
+	Meta       *moviemeta.Service
 	JWT        *auth.JWT
 	AdminPass  string
 	UploadsDir string
@@ -28,11 +30,12 @@ type Server struct {
 	spotifyStates map[string]time.Time // oauth CSRF state -> expiry
 }
 
-func New(st *store.Store, tg *notify.Telegram, sp *spotify.Client, jwt *auth.JWT, adminPass, uploadsDir string) *Server {
+func New(st *store.Store, tg *notify.Telegram, sp *spotify.Client, meta *moviemeta.Service, jwt *auth.JWT, adminPass, uploadsDir string) *Server {
 	return &Server{
 		Store:         st,
 		Telegram:      tg,
 		Spotify:       sp,
+		Meta:          meta,
 		JWT:           jwt,
 		AdminPass:     adminPass,
 		UploadsDir:    uploadsDir,
@@ -70,6 +73,9 @@ func (s *Server) Routes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/movies", s.handleListMovies)
 	mux.HandleFunc("POST /api/admin/movies", s.requireAuth(s.handleSaveMovie))
 	mux.HandleFunc("DELETE /api/admin/movies/{id}", s.requireAuth(s.handleDeleteMovie))
+	mux.HandleFunc("GET /api/admin/lookup/sources", s.requireAuth(s.handleLookupSources))
+	mux.HandleFunc("GET /api/admin/lookup/search", s.requireAuth(s.handleLookupSearch))
+	mux.HandleFunc("GET /api/admin/lookup/details", s.requireAuth(s.handleLookupDetails))
 
 	mux.HandleFunc("GET /api/admin/messages", s.requireAuth(s.handleListMessages))
 	mux.HandleFunc("POST /api/admin/messages/{id}/read", s.requireAuth(s.handleReadMessage))

@@ -2,9 +2,12 @@ package api
 
 import (
 	"crypto/subtle"
+	"errors"
+	"log"
 	"net/http"
 	"time"
 
+	"cv-semenov/internal/poster"
 	"cv-semenov/internal/store"
 )
 
@@ -258,12 +261,41 @@ func (s *Server) handleSaveMovie(w http.ResponseWriter, r *http.Request) {
 	if m.Rating > 10 {
 		m.Rating = 10
 	}
+	m.Poster = trim(m.Poster)
+
+	var old store.Movie
+	if m.ID != 0 {
+		var err error
+		if old, err = s.Store.GetMovie(m.ID); errors.Is(err, store.ErrNotFound) {
+			writeError(w, http.StatusNotFound, "запись не найдена")
+			return
+		} else if err != nil {
+			s.serverError(w, "get movie", err)
+			return
+		}
+	}
+
+	// remote posters (from lookup or pasted by hand) get downloaded and shrunk;
+	// if that fails the link is kept so the save itself still goes through
+	warning := ""
+	if poster.IsRemote(m.Poster) {
+		if local, err := s.localizePoster(r.Context(), m); err != nil {
+			log.Printf("download poster %q: %v", m.Poster, err)
+			warning = "постер не удалось скачать — сохранена внешняя ссылка"
+		} else {
+			m.Poster = local
+		}
+	}
+
 	id, err := s.Store.UpsertMovie(m)
 	if err != nil {
 		s.serverError(w, "save movie", err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]int64{"id": id})
+	if old.Poster != "" && old.Poster != m.Poster {
+		s.removePosterIfUnused(old.Poster)
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"id": id, "poster": m.Poster, "warning": warning})
 }
 
 func (s *Server) handleDeleteMovie(w http.ResponseWriter, r *http.Request) {
@@ -272,10 +304,16 @@ func (s *Server) handleDeleteMovie(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "некорректный id")
 		return
 	}
+	old, err := s.Store.GetMovie(id)
+	if err != nil && !errors.Is(err, store.ErrNotFound) {
+		s.serverError(w, "get movie", err)
+		return
+	}
 	if err := s.Store.DeleteMovie(id); err != nil {
 		s.serverError(w, "delete movie", err)
 		return
 	}
+	s.removePosterIfUnused(old.Poster)
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
 

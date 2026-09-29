@@ -19,6 +19,7 @@ import (
 	"cv-semenov/internal/api"
 	"cv-semenov/internal/auth"
 	"cv-semenov/internal/crypto"
+	"cv-semenov/internal/moviemeta"
 	"cv-semenov/internal/notify"
 	"cv-semenov/internal/spotify"
 	"cv-semenov/internal/store"
@@ -50,8 +51,9 @@ func main() {
 
 	tg := notify.NewTelegram(cfg.tgToken, cfg.tgChat)
 	sc := spotify.New(cfg.spotifyClientID, cfg.spotifyClientSecret, cfg.spotifyRedirectURI)
+	meta := moviemeta.New(cfg.kinopoiskKey, cfg.tmdbKey)
 	jwt := auth.New(cfg.jwtSecret)
-	srv := api.New(st, tg, sc, jwt, cfg.adminPass, cfg.uploadsDir)
+	srv := api.New(st, tg, sc, meta, jwt, cfg.adminPass, cfg.uploadsDir)
 
 	mux := http.NewServeMux()
 	srv.Routes(mux)
@@ -75,6 +77,8 @@ func main() {
 		} else {
 			log.Printf("telegram notifications: disabled (set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID)")
 		}
+		src := meta.Sources()
+		log.Printf("movie lookup: kinopoisk=%v tmdb=%v", src[moviemeta.Kinopoisk], src[moviemeta.TMDB])
 		if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Fatalf("http server: %v", err)
 		}
@@ -188,6 +192,9 @@ type config struct {
 	spotifyClientID     string
 	spotifyClientSecret string
 	spotifyRedirectURI  string
+
+	kinopoiskKey string
+	tmdbKey      string
 }
 
 func loadConfig() config {
@@ -202,6 +209,9 @@ func loadConfig() config {
 		spotifyClientID:     env("SPOTIFY_CLIENT_ID", ""),
 		spotifyClientSecret: env("SPOTIFY_CLIENT_SECRET", ""),
 		spotifyRedirectURI:  env("SPOTIFY_REDIRECT_URI", ""),
+
+		kinopoiskKey: env("KINOPOISK_API_KEY", ""),
+		tmdbKey:      env("TMDB_API_KEY", ""),
 	}
 	if c.adminPass == "admin" {
 		log.Printf("WARNING: ADMIN_PASSWORD is the default 'admin' — set a strong password via env")

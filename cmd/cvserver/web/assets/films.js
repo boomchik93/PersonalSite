@@ -69,7 +69,7 @@ function matches(m) {
   if (state.status && m.status !== state.status) return false;
   if (state.genre && !splitGenres(m.genres).includes(state.genre)) return false;
   if (state.q) {
-    const hay = (m.title + ' ' + (m.director || '') + ' ' + (m.genres || '')).toLowerCase();
+    const hay = [m.title, m.original_title, m.director, m.genres, m.countries].join(' ').toLowerCase();
     if (!hay.includes(state.q.toLowerCase())) return false;
   }
   return true;
@@ -133,7 +133,9 @@ function openModal(id) {
   const rows = [];
   if (m.director) rows.push(['Режиссёр', m.director]);
   if (m.year) rows.push(['Год', m.year]);
+  if (m.countries) rows.push(['Страна', m.countries]);
   rows.push(['Тип', KIND_LABEL[m.kind] || m.kind]);
+  if (m.runtime > 0) rows.push([m.kind === 'series' ? 'Серия' : 'Длительность', runtimeLabel(m.runtime)]);
   if (m.status) rows.push(['Статус', STATUS_LABEL[m.status] || m.status]);
   if (m.watched_at) rows.push(['Просмотрено', m.watched_at]);
   const metaRows = rows.map(([k, v]) =>
@@ -147,16 +149,39 @@ function openModal(id) {
           <h2 style="font-size:24px;font-weight:700">${esc(m.title)}</h2>
           ${m.favorite ? '<span style="font-size:18px">⭐</span>' : ''}
         </div>
+        ${m.original_title ? `<div style="color:#9aa0ab;font-size:14px;margin:-4px 0 10px">${esc(m.original_title)}</div>` : ''}
         ${m.rating > 0 ? `<div class="mono" style="font-size:22px;color:#2563eb;font-weight:600;margin-bottom:14px">★ ${m.rating}<span style="color:#9aa0ab;font-size:14px">/10</span></div>` : ''}
         ${metaRows}
+        ${externalRatings(m)}
         <div style="margin-top:10px">${genres}</div>
       </div>
     </div>
     <div class="body">
+      ${m.description ? `<div class="mono" style="font-size:12px;color:#2563eb;margin-bottom:10px">// о чём</div><div class="review" style="margin-bottom:22px">${esc(m.description)}</div>` : ''}
       ${m.review ? `<div class="mono" style="font-size:12px;color:#2563eb;margin-bottom:10px">// рецензия</div><div class="review">${esc(m.review)}</div>` : '<div style="color:#9aa0ab;font-size:15px">Рецензия пока не написана.</div>'}
     </div>`;
   $('overlay').classList.add('open');
   document.body.style.overflow = 'hidden';
+}
+
+function runtimeLabel(min) {
+  const h = Math.floor(min / 60);
+  return h ? `${h} ч ${min % 60} мин` : `${min} мин`;
+}
+
+// ratings + links to the film on Kinopoisk / IMDb, when the entry has those ids
+function externalRatings(m) {
+  const items = [];
+  if (m.kp_id) items.push(['Кинопоиск', m.kp_rating, `https://www.kinopoisk.ru/${m.kind === 'series' ? 'series' : 'film'}/${m.kp_id}/`]);
+  else if (m.kp_rating) items.push(['Кинопоиск', m.kp_rating, '']);
+  if (m.imdb_id) items.push(['IMDb', m.imdb_rating, `https://www.imdb.com/title/${encodeURIComponent(m.imdb_id)}/`]);
+  else if (m.imdb_rating) items.push(['IMDb', m.imdb_rating, '']);
+  if (!items.length) return '';
+  return `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">${items.map(([name, r, url]) => {
+    const text = `${esc(name)}${r ? ` <b>${Number(r).toFixed(1)}</b>` : ''}${url ? ' ↗' : ''}`;
+    const style = 'display:inline-flex;gap:6px;align-items:center;padding:5px 11px;border-radius:8px;border:1px solid #e7e9ee;font-size:12px;color:#4b515c;text-decoration:none';
+    return url ? `<a href="${esc(url)}" target="_blank" rel="noopener" style="${style}">${text}</a>` : `<span style="${style}">${text}</span>`;
+  }).join('')}</div>`;
 }
 
 function closeModal() {

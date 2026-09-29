@@ -5,11 +5,14 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"cv-semenov/internal/poster"
 )
 
 const maxUpload = 12 << 20 // 12 MiB
@@ -41,28 +44,35 @@ func (s *Server) handleUpload(w http.ResponseWriter, r *http.Request) {
 
 	ext := strings.ToLower(filepath.Ext(header.Filename))
 
-	// posters need unique names (many per library), unlike the fixed photo/resume.
-	var dstName string
+	// posters need unique names (many per library), unlike the fixed photo/resume,
+	// and get shrunk to jpeg like the ones downloaded from Kinopoisk/TMDB.
 	if kind == "poster" {
 		if !allowedPhotoExts[ext] {
 			writeError(w, http.StatusUnsupportedMediaType, "недопустимый формат файла")
 			return
 		}
-		dstName = uniqueFilename("poster", ext)
-	} else {
-		spec, ok := allowedUploads[kind]
-		if !ok {
-			writeError(w, http.StatusBadRequest, "неизвестный тип загрузки")
+		name := uniqueFilename("poster", ".jpg")
+		if err := poster.SaveFromReader(file, s.UploadsDir, name); err != nil {
+			log.Printf("optimize poster upload: %v", err)
+			writeError(w, http.StatusUnprocessableEntity, "не удалось обработать изображение")
 			return
 		}
-		if !spec.exts[ext] {
-			writeError(w, http.StatusUnsupportedMediaType, "недопустимый формат файла")
-			return
-		}
-		// keep base name but real ext, so browser can guess content type right
-		base := strings.TrimSuffix(spec.filename, filepath.Ext(spec.filename))
-		dstName = base + ext
+		writeJSON(w, http.StatusOK, map[string]string{"url": "/uploads/" + name})
+		return
 	}
+
+	spec, ok := allowedUploads[kind]
+	if !ok {
+		writeError(w, http.StatusBadRequest, "неизвестный тип загрузки")
+		return
+	}
+	if !spec.exts[ext] {
+		writeError(w, http.StatusUnsupportedMediaType, "недопустимый формат файла")
+		return
+	}
+	// keep base name but real ext, so browser can guess content type right
+	base := strings.TrimSuffix(spec.filename, filepath.Ext(spec.filename))
+	dstName := base + ext
 	dstPath := filepath.Join(s.UploadsDir, dstName)
 
 	dst, err := os.Create(dstPath)
